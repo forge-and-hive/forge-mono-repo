@@ -8,7 +8,8 @@ import fs from 'fs/promises'
 import path from 'path'
 
 import { load as loadConf } from '../conf/load'
-import { analyzeTaskFile, TaskFingerprintOutput } from '../../utils/taskAnalysis'
+import { fingerprint as bundleFingerprint } from '../bundle/fingerprint'
+import { TaskFingerprintOutput } from '../../utils/taskAnalysis'
 
 interface FingerprintAnalysis {
   taskFingerprint: TaskFingerprintOutput
@@ -25,21 +26,7 @@ const boundaries = {
     return process.cwd()
   },
   loadConf: loadConf.asBoundary(),
-  readFile: async (filePath: string): Promise<string> => {
-    return fs.readFile(filePath, 'utf-8')
-  },
-  writeFile: async (filePath: string, content: string): Promise<void> => {
-    return fs.writeFile(filePath, content)
-  },
-  ensureFingerprintsFolder: async (cwd: string, conf: { paths?: { fingerprints?: string } }): Promise<string> => {
-    const fingerprintsPath = path.join(cwd, conf.paths?.fingerprints || 'fingerprints/')
-    try {
-      await fs.access(fingerprintsPath)
-    } catch {
-      await fs.mkdir(fingerprintsPath, { recursive: true })
-    }
-    return fingerprintsPath
-  }
+  bundleFingerprint: bundleFingerprint.asBoundary()
 }
 
 export const fingerprint = createTask({
@@ -48,9 +35,7 @@ export const fingerprint = createTask({
   fn: async function ({ descriptorName }, {
     getCwd,
     loadConf,
-    readFile,
-    writeFile,
-    ensureFingerprintsFolder
+    bundleFingerprint
   }) {
     const cwd = await getCwd()
     const forgeJson = await loadConf({})
@@ -62,37 +47,30 @@ export const fingerprint = createTask({
     }
 
     const filePath = path.join(cwd, taskDescriptor.path)
-    const fingerprintsPath = await ensureFingerprintsFolder(cwd, forgeJson)
-    const fingerprintFile = path.join(fingerprintsPath, `${descriptorName}.fingerprint.json`)
 
     console.log(`Analyzing task: ${descriptorName}`)
     console.log(`Task file: ${filePath}`)
 
-    // Read and analyze the task file using the utility function
-    const sourceCode = await readFile(filePath)
-    const taskFingerprint = analyzeTaskFile(sourceCode, filePath)
+    // Use bundle:fingerprint with filePath to analyze the task file directly
+    const result = await bundleFingerprint({
+      descriptorName,
+      filePath
+    })
+
+    const taskFingerprint = result.taskFingerprint
 
     if (!taskFingerprint) {
-      throw new Error('Could not extract fingerprint from task file: ' + filePath)
+      throw new Error('Could not extract fingerprint from task file')
     }
-
-    // Create analysis result - clean output without extra fields
-    const analysis: FingerprintAnalysis = {
-      taskFingerprint
-    }
-
-    // Write fingerprint to file
-    await writeFile(fingerprintFile, JSON.stringify(analysis, null, 2))
 
     console.log('Task fingerprint generated successfully')
     console.log(`Input properties: ${Object.keys(taskFingerprint.inputSchema.properties).join(', ')}`)
-    console.log(`Boundaries: ${taskFingerprint.boundaries.join(', ')}`)
-    console.log(`Fingerprint saved to: ${fingerprintFile}`)
+    console.log(`Boundaries: ${taskFingerprint.boundaries.map(b => b.name).join(', ')}`)
 
     return {
       taskName: descriptorName,
       fingerprint: taskFingerprint,
-      fingerprintFile,
+      fingerprintFile: result.fingerprintFile,
       analysis: {
         inputSchemaProps: Object.keys(taskFingerprint.inputSchema.properties),
         boundaryCount: taskFingerprint.boundaries.length,

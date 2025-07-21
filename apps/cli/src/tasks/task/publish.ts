@@ -39,23 +39,6 @@ const boundaries = {
   readFileBinary: async (filePath: string): Promise<Buffer> => {
     return fs.readFile(filePath)
   },
-  readFingerprintFile: async (filePath: string): Promise<TaskFingerprintOutput | null> => {
-    try {
-      const content = await fs.readFile(filePath, 'utf-8')
-      const data = JSON.parse(content)
-
-      // Handle both direct taskFingerprint and wrapped format
-      if (data.taskFingerprint) {
-        return data.taskFingerprint
-      } else if (data.tasks && data.tasks.length > 0) {
-        return data.tasks[0]
-      }
-
-      return null
-    } catch {
-      return null
-    }
-  },
   publishTask: async (data: Record<string, unknown>, profile: Profile): Promise<{ bundleUploadUrl?: string }> => {
     const publishUrl = `${profile.url}/api/tasks/publish`
     const authToken = `${profile.apiKey}:${profile.apiSecret}`
@@ -114,7 +97,6 @@ export const publish = createTask({
     bundleFingerprint,
     readFileUtf8,
     readFileBinary,
-    readFingerprintFile,
     publishTask,
     loadCurrentProfile,
     uploadBundleWithPresignedUrl
@@ -154,18 +136,17 @@ export const publish = createTask({
 
     // Generate task fingerprint
     console.log('Generating task fingerprint...')
-    let taskFingerprint: TaskFingerprintOutput | null = null
+    let taskFingerprintData: TaskFingerprintOutput | null = null
     try {
       const fingerprintResult = await bundleFingerprint({
-        descriptorName
+        descriptorName,
+        filePath: entryPoint
       })
 
-      // If fingerprint generation returned a file path, read the fingerprint using the boundary
-      if (fingerprintResult.fingerprintsFile) {
-        taskFingerprint = await readFingerprintFile(fingerprintResult.fingerprintsFile)
-        if (taskFingerprint) {
-          console.log('Task fingerprint generated and loaded successfully')
-        }
+      // Bundle fingerprint returns the fingerprint data directly
+      if (fingerprintResult.taskFingerprint) {
+        taskFingerprintData = fingerprintResult.taskFingerprint
+        console.log('Task fingerprint generated successfully')
       }
     } catch (error) {
       console.warn('Failed to generate task fingerprint:', error instanceof Error ? error.message : String(error))
@@ -204,7 +185,7 @@ export const publish = createTask({
       boundaries,
       sourceCode,
       bundleSize,
-      ...(taskFingerprint && { fingerprint: taskFingerprint })
+      ...(taskFingerprintData && { fingerprint: taskFingerprintData })
     }
 
     // Publish metadata to hive api server
@@ -222,7 +203,7 @@ export const publish = createTask({
       return {
         descriptor: taskDescriptor,
         publish: true,
-        fingerprint: taskFingerprint !== null
+        fingerprint: taskFingerprintData !== null
       }
     } else {
       throw new Error('Bundle upload failed')

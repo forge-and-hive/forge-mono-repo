@@ -22,6 +22,8 @@ interface TaskFingerprint {
   inputSchema: TaskFingerprintOutput['inputSchema']
   outputType: TaskFingerprintOutput['outputType']
   boundaries: TaskFingerprintOutput['boundaries']
+  errors: TaskFingerprintOutput['errors']
+  analysisMetadata: TaskFingerprintOutput['analysisMetadata']
   hash: string
 }
 
@@ -95,6 +97,8 @@ function taskFingerprintPlugin(): esbuild.Plugin {
               inputSchema: taskFingerprint.inputSchema,
               outputType: taskFingerprint.outputType,
               boundaries: taskFingerprint.boundaries,
+              errors: taskFingerprint.errors,
+              analysisMetadata: taskFingerprint.analysisMetadata,
               hash: 'generated-hash'
             }
             fingerprints.push(fullFingerprint)
@@ -132,8 +136,22 @@ export const fingerprint = createTask({
         throw new Error('Could not extract fingerprint from task file: ' + filePath)
       }
 
-      return {
+      // Write fingerprint to file for consistency
+      const cwd = await getCwd()
+      const forgeJson = await loadConf({})
+      const fingerprintsPath = await ensureFingerprintsFolder(cwd, forgeJson)
+      const fingerprintFile = path.join(fingerprintsPath, `${descriptorName}.fingerprint.json`)
+      
+      const analysis = {
         taskFingerprint: fingerprintOutput
+      }
+      
+      await writeFile(fingerprintFile, JSON.stringify(analysis, null, 2))
+      console.log(`Fingerprint saved to: ${fingerprintFile}`)
+
+      return {
+        taskFingerprint: fingerprintOutput,
+        fingerprintFile
       }
     }
 
@@ -177,13 +195,8 @@ export const fingerprint = createTask({
       inputSchema: fp.inputSchema,
       outputType: fp.outputType,
       boundaries: fp.boundaries,
-      errors: [], // No errors collected during bundle process
-      analysisMetadata: {
-        timestamp: new Date().toISOString(),
-        filePath: fp.location.file,
-        success: true,
-        analysisVersion: '1.0.0'
-      }
+      errors: fp.errors, // Preserve errors from analyzeTaskFile
+      analysisMetadata: fp.analysisMetadata // Preserve metadata from analyzeTaskFile
     }))
 
     // Create fingerprint result

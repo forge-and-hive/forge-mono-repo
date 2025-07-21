@@ -27,33 +27,44 @@ export const info = createTask({
     const packageJsonContent = await readFile(packageJsonPath)
     const packageJson = JSON.parse(packageJsonContent)
 
-    const info = {
-      version: packageJson.version,
-      profile: {},
-      paths: {}
-    }
-
     const config = await loadConfig({})
 
-    info.paths = {
-      logs: config.paths.logs,
-      fixtures: config.paths.fixtures,
-      fingerprints: config.paths.fingerprints
-    }
+    // Display human-friendly information
+    console.log('=== Forge CLI Information ===')
+    console.log()
+    console.log(`Version: ${packageJson.version}`)
+    console.log()
+    
+    console.log('Configuration Paths:')
+    console.log(`  Logs: ${config.paths.logs}`)
+    console.log(`  Fixtures: ${config.paths.fixtures}`)
+    console.log(`  Fingerprints: ${config.paths.fingerprints}`)
+    console.log()
 
     let profile
     try {
       profile = await loadCurrentProfile({})
+      console.log('Current Profile:')
+      console.log(`  Name: ${profile.name}`)
+      console.log(`  URL: ${profile.url}`)
+      console.log(`  API Key: ${profile.apiKey}`)
+    } catch (error) {
+      console.log('Current Profile: No default profile set')
+      console.log('  Run "forge task:run auth:add" to create a profile.')
+    }
 
-      info.profile = {
+    return {
+      version: packageJson.version,
+      profile: profile ? {
         name: profile.name,
         url: profile.url,
         apiKey: profile.apiKey
+      } : null,
+      paths: {
+        logs: config.paths.logs,
+        fixtures: config.paths.fixtures,
+        fingerprints: config.paths.fingerprints
       }
-    } catch (error) {
-      console.log('No default profile set. Please run forge task:run auth:add to create a profile.')
     }
-
-    return info
   }
 })
