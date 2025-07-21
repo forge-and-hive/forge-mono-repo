@@ -836,30 +836,30 @@ function analyzeBoundaryReturnTypeWithErrors(func: ts.ArrowFunction | ts.Functio
         if (innerType.includes('[]') || innerType.includes('Array<')) {
           // Extract array element type
           let elementType = 'unknown'
-          
+
           if (innerType.includes('[]')) {
             // Handle T[] format
             const elementTypeMatch = innerType.match(/^(.+)\[\]$/)
             if (elementTypeMatch) {
               const rawElementType = elementTypeMatch[1].trim()
-              
+
               // Parse object element types
               if (rawElementType.includes('{') && rawElementType.includes('}')) {
                 const objectType = parseObjectTypeFromString(rawElementType)
                 if (objectType && objectType.properties) {
-                  return { 
-                    returnType: { 
+                  return {
+                    returnType: {
                       type: 'array',
                       elementType: {
                         type: 'object',
                         properties: objectType.properties
                       }
-                    }, 
-                    errors 
+                    },
+                    errors
                   }
                 }
               }
-              
+
               elementType = rawElementType
             }
           } else if (innerType.includes('Array<')) {
@@ -869,13 +869,13 @@ function analyzeBoundaryReturnTypeWithErrors(func: ts.ArrowFunction | ts.Functio
               elementType = elementTypeMatch[1].trim()
             }
           }
-          
-          return { 
-            returnType: { 
+
+          return {
+            returnType: {
               type: 'array',
               elementType: elementType === 'unknown' ? undefined : { type: elementType }
-            }, 
-            errors 
+            },
+            errors
           }
         } else if (innerType === 'string') {
           return { returnType: { type: 'string' }, errors }
