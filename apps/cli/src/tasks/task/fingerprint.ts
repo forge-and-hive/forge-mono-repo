@@ -4,16 +4,10 @@
 
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
-import fs from 'fs/promises'
 import path from 'path'
 
 import { load as loadConf } from '../conf/load'
 import { fingerprint as bundleFingerprint } from '../bundle/fingerprint'
-import { TaskFingerprintOutput } from '../../utils/taskAnalysis'
-
-interface FingerprintAnalysis {
-  taskFingerprint: TaskFingerprintOutput
-}
 
 const description = 'Analyze a specific task and generate detailed fingerprint without bundling'
 

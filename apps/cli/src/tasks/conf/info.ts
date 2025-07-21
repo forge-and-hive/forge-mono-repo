@@ -30,11 +30,12 @@ export const info = createTask({
     const config = await loadConfig({})
 
     // Display human-friendly information
-    console.log('=== Forge CLI Information ===')
+    console.log('===============================================')
+    console.log('============ Forge CLI Information ============')
     console.log()
     console.log(`Version: ${packageJson.version}`)
     console.log()
-    
+
     console.log('Configuration Paths:')
     console.log(`  Logs: ${config.paths.logs}`)
     console.log(`  Fixtures: ${config.paths.fixtures}`)
@@ -52,6 +53,9 @@ export const info = createTask({
       console.log('Current Profile: No default profile set')
       console.log('  Run "forge task:run auth:add" to create a profile.')
     }
+
+    console.log()
+    console.log('===============================================')
 
     return {
       version: packageJson.version,

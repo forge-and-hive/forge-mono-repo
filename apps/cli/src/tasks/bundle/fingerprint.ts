@@ -141,11 +141,11 @@ export const fingerprint = createTask({
       const forgeJson = await loadConf({})
       const fingerprintsPath = await ensureFingerprintsFolder(cwd, forgeJson)
       const fingerprintFile = path.join(fingerprintsPath, `${descriptorName}.fingerprint.json`)
-      
+
       const analysis = {
         taskFingerprint: fingerprintOutput
       }
-      
+
       await writeFile(fingerprintFile, JSON.stringify(analysis, null, 2))
       console.log(`Fingerprint saved to: ${fingerprintFile}`)
 
