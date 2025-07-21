@@ -22,6 +22,7 @@ interface InputSchema {
 interface OutputType {
   type: string
   properties?: Record<string, SchemaProperty>
+  elementType?: OutputType
 }
 
 export interface FingerprintError {
@@ -411,6 +412,9 @@ function inferDetailedReturnType(func: ts.FunctionExpression | ts.ArrowFunction,
             if (varType && typeof varType === 'object' && varType.type) {
               // If we have detailed type information from boundary calls
               if (varType.type === 'object' && varType.properties) {
+                properties[propName] = varType
+              } else if (varType.type === 'array' && varType.elementType) {
+                // Handle arrays with elementType information
                 properties[propName] = varType
               } else {
                 properties[propName] = { type: varType.type }
@@ -830,7 +834,49 @@ function analyzeBoundaryReturnTypeWithErrors(func: ts.ArrowFunction | ts.Functio
 
         // Parse detailed type patterns
         if (innerType.includes('[]') || innerType.includes('Array<')) {
-          return { returnType: { type: 'array' }, errors }
+          // Extract array element type
+          let elementType = 'unknown'
+          
+          if (innerType.includes('[]')) {
+            // Handle T[] format
+            const elementTypeMatch = innerType.match(/^(.+)\[\]$/)
+            if (elementTypeMatch) {
+              const rawElementType = elementTypeMatch[1].trim()
+              
+              // Parse object element types
+              if (rawElementType.includes('{') && rawElementType.includes('}')) {
+                const objectType = parseObjectTypeFromString(rawElementType)
+                if (objectType && objectType.properties) {
+                  return { 
+                    returnType: { 
+                      type: 'array',
+                      elementType: {
+                        type: 'object',
+                        properties: objectType.properties
+                      }
+                    }, 
+                    errors 
+                  }
+                }
+              }
+              
+              elementType = rawElementType
+            }
+          } else if (innerType.includes('Array<')) {
+            // Handle Array<T> format
+            const elementTypeMatch = innerType.match(/Array<(.+)>/)
+            if (elementTypeMatch) {
+              elementType = elementTypeMatch[1].trim()
+            }
+          }
+          
+          return { 
+            returnType: { 
+              type: 'array',
+              elementType: elementType === 'unknown' ? undefined : { type: elementType }
+            }, 
+            errors 
+          }
         } else if (innerType === 'string') {
           return { returnType: { type: 'string' }, errors }
         } else if (innerType === 'number') {

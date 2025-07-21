@@ -67,6 +67,7 @@ interface TaskFingerprint {
   outputType: {
     type: string
     properties?: Record<string, any>
+    elementType?: OutputType
   }
   boundaries: BoundaryFingerprint[]
   hash: string
@@ -77,6 +78,12 @@ interface BoundaryFingerprint {
   input: SchemaProperty[]
   output: OutputType
   errors: FingerprintError[]
+}
+
+interface OutputType {
+  type: string
+  properties?: Record<string, SchemaProperty>
+  elementType?: OutputType
 }
 
 interface FingerprintError {
@@ -182,6 +189,37 @@ export const taskName = createTask(schema, boundaries, fn)
 - Parse Promise wrapper types
 - Infer types from return statements when annotations missing
 - Handle complex object return types
+- Support for array element type detection with `elementType` property
+
+#### Array Element Type Detection
+The system now provides enhanced array type analysis:
+
+**TypeScript Annotation Parsing**: 
+```typescript
+// Boundary function with array return type
+getPortfolio: async (userUUID: string): Promise<{ symbol: string, quantity: number, price: number }[]>
+```
+
+**Generated Fingerprint**:
+```json
+{
+  "type": "array",
+  "elementType": {
+    "type": "object", 
+    "properties": {
+      "symbol": { "type": "string" },
+      "quantity": { "type": "number" },
+      "price": { "type": "number" }
+    }
+  }
+}
+```
+
+**Supported Array Patterns**:
+- `T[]` format: `{ symbol: string, quantity: number }[]`
+- `Array<T>` format: `Array<{ symbol: string, quantity: number }>`
+- Complex nested objects within arrays
+- Propagation from boundary types to task output types
 
 #### Error Collection
 - **Boundary Errors**: Detect `throw` statements in boundary functions
@@ -250,7 +288,18 @@ const boundaries = {
         "user": { "type": "object" },
         "profile": { "type": "string" },
         "lastLogin": { "type": "string" },
-        "processed": { "type": "boolean" }
+        "processed": { "type": "boolean" },
+        "portfolio": {
+          "type": "array",
+          "elementType": {
+            "type": "object",
+            "properties": {
+              "symbol": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        }
       }
     },
     "boundaries": [
@@ -267,6 +316,37 @@ const boundaries = {
         ],
         "output": { "type": "User | null" },
         "errors": []
+      },
+      {
+        "name": "getPortfolio",
+        "input": [
+          {
+            "type": "string",
+            "name": "userUUID"
+          }
+        ],
+        "output": {
+          "type": "array",
+          "elementType": {
+            "type": "object",
+            "properties": {
+              "symbol": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "errors": [
+          {
+            "type": "boundary",
+            "message": "Boundary function throws: User not found",
+            "location": {
+              "file": "/path/to/tasks/stock/getPortfolio.ts",
+              "line": 19,
+              "column": 7
+            }
+          }
+        ]
       },
       {
         "name": "fetchUserProfile", 
@@ -511,6 +591,9 @@ export const testTask = createTask(
 - [x] Add support for complex object structure detection
 - [x] Enhance property access expression analysis (e.g., result1.result)
 - [x] Add schema optional property detection with chained methods
+- [x] Implement array element type detection with `elementType` support
+- [x] Add support for complex array-of-objects type patterns
+- [x] Enable type propagation from boundary arrays to task output arrays
 
 ### Runtime Error Collection System
 - [x] Implement boundary error detection (throw statements in boundary functions)
