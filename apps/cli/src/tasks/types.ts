@@ -27,6 +27,7 @@ export interface ForgeConf {
     tasks: string
     runners: string
     fixtures: string
+    fingerprints: string
     tests: string
   }
   infra: Infra

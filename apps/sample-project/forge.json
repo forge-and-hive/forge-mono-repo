@@ -8,6 +8,7 @@
     "tasks": "src/tasks/",
     "runners": "src/runners/",
     "fixtures": "fixtures",
+    "fingerprints": "fingerprints/",
     "tests": "src/tests/"
   },
   "infra": {
@@ -22,6 +23,10 @@
     "stock:getPortfolio": {
       "path": "src/tasks/stock/getPortfolio.ts",
       "handler": "getPortfolio"
+    },
+    "test:errors": {
+      "path": "src/tasks/test/errors.ts",
+      "handler": "errors"
     }
   },
   "runners": {}

@@ -37,6 +37,7 @@ export const init = createTask({
       paths: {
         logs: 'logs/',
         fixtures: 'fixtures/',
+        fingerprints: 'fingerprints/',
         tasks: 'src/tasks/',
         runners: 'src/runners/',
         tests: 'src/tests/'

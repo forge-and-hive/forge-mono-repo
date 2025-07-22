@@ -8,41 +8,67 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 import { loadCurrent as loadCurrentProfile } from '../auth/loadCurrent'
+import { load as loadConfig } from '../conf/load'
 
 const schema = new Schema({})
 
 const boundaries = {
   readFile: async (filePath: string): Promise<string> => fs.promises.readFile(filePath, 'utf-8'),
+  loadConfig: loadConfig.asBoundary(),
   loadCurrentProfile: loadCurrentProfile.asBoundary()
 }
 
 export const info = createTask({
   schema,
   boundaries,
-  fn: async function (_argv, { loadCurrentProfile, readFile }) {
+  fn: async function (_argv, { loadCurrentProfile, loadConfig, readFile }) {
     const packageJsonPath = path.join(__dirname, '../../../package.json')
 
     const packageJsonContent = await readFile(packageJsonPath)
     const packageJson = JSON.parse(packageJsonContent)
 
-    const info = {
-      version: packageJson.version,
-      profile: {}
-    }
+    const config = await loadConfig({})
+
+    // Display human-friendly information
+    console.log('===============================================')
+    console.log('============ Forge CLI Information ============')
+    console.log()
+    console.log(`Version: ${packageJson.version}`)
+    console.log()
+
+    console.log('Configuration Paths:')
+    console.log(`  Logs: ${config.paths.logs}`)
+    console.log(`  Fixtures: ${config.paths.fixtures}`)
+    console.log(`  Fingerprints: ${config.paths.fingerprints}`)
+    console.log()
 
     let profile
     try {
       profile = await loadCurrentProfile({})
+      console.log('Current Profile:')
+      console.log(`  Name: ${profile.name}`)
+      console.log(`  URL: ${profile.url}`)
+      console.log(`  API Key: ${profile.apiKey}`)
+    } catch (error) {
+      console.log('Current Profile: No default profile set')
+      console.log('  Run "forge task:run auth:add" to create a profile.')
+    }
 
-      info.profile = {
+    console.log()
+    console.log('===============================================')
+
+    return {
+      version: packageJson.version,
+      profile: profile ? {
         name: profile.name,
         url: profile.url,
         apiKey: profile.apiKey
+      } : null,
+      paths: {
+        logs: config.paths.logs,
+        fixtures: config.paths.fixtures,
+        fingerprints: config.paths.fingerprints
       }
-    } catch (error) {
-      console.log('No default profile set. Please run forge task:run auth:add to create a profile.')
     }
-
-    return info
   }
 })

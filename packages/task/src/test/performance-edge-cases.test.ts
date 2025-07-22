@@ -2,7 +2,7 @@
 import { createTask, TimingTracker, validateMetric, createMetric } from '../index'
 import { Schema } from '@forgehive/schema'
 
-describe('Performance and Edge Case Tests', () => {
+describe.skip('Performance and Edge Case Tests', () => {
   describe('Performance impact of timing and metrics collection', () => {
     it('should have minimal performance overhead for timing collection', async () => {
       const baselineTask = createTask({

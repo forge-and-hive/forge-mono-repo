@@ -160,6 +160,10 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
       })
     } else {
       result = await task.run(args)
+
+      if (taskName === 'info') {
+        silent = true
+      }
     }
 
     if (taskName === 'task:describe' || taskName === 'task:list') {

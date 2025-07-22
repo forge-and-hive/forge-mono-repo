@@ -7,7 +7,6 @@ import { Schema } from '@forgehive/schema'
 import esbuild from 'esbuild'
 import fs from 'fs/promises'
 import path from 'path'
-import os from 'os'
 
 import { load as loadConf } from '../conf/load'
 import { analyzeTaskFile, TaskFingerprintOutput } from '../../utils/taskAnalysis'
@@ -22,7 +21,9 @@ interface TaskFingerprint {
   }
   inputSchema: TaskFingerprintOutput['inputSchema']
   outputType: TaskFingerprintOutput['outputType']
-  boundaries: string[]
+  boundaries: TaskFingerprintOutput['boundaries']
+  errors: TaskFingerprintOutput['errors']
+  analysisMetadata: TaskFingerprintOutput['analysisMetadata']
   hash: string
 }
 
@@ -59,14 +60,14 @@ const boundaries = {
   writeFile: async (filePath: string, content: string): Promise<void> => {
     return fs.writeFile(filePath, content)
   },
-  ensureForgeFolder: async (): Promise<string> => {
-    const forgePath = path.join(os.homedir(), '.forge')
+  ensureFingerprintsFolder: async (cwd: string, conf: { paths?: { fingerprints?: string } }): Promise<string> => {
+    const fingerprintsPath = path.join(cwd, conf.paths?.fingerprints || 'fingerprints/')
     try {
-      await fs.access(forgePath)
+      await fs.access(fingerprintsPath)
     } catch {
-      await fs.mkdir(forgePath, { recursive: true })
+      await fs.mkdir(fingerprintsPath, { recursive: true })
     }
-    return forgePath
+    return fingerprintsPath
   }
 }
 
@@ -96,6 +97,8 @@ function taskFingerprintPlugin(): esbuild.Plugin {
               inputSchema: taskFingerprint.inputSchema,
               outputType: taskFingerprint.outputType,
               boundaries: taskFingerprint.boundaries,
+              errors: taskFingerprint.errors,
+              analysisMetadata: taskFingerprint.analysisMetadata,
               hash: 'generated-hash'
             }
             fingerprints.push(fullFingerprint)
@@ -121,7 +124,7 @@ export const fingerprint = createTask({
     loadConf,
     readFile,
     writeFile,
-    ensureForgeFolder
+    ensureFingerprintsFolder
   }) {
     // If filePath is provided, analyze that file directly and return JSON
     if (filePath) {
@@ -133,8 +136,22 @@ export const fingerprint = createTask({
         throw new Error('Could not extract fingerprint from task file: ' + filePath)
       }
 
-      return {
+      // Write fingerprint to file for consistency
+      const cwd = await getCwd()
+      const forgeJson = await loadConf({})
+      const fingerprintsPath = await ensureFingerprintsFolder(cwd, forgeJson)
+      const fingerprintFile = path.join(fingerprintsPath, `${descriptorName}.fingerprint.json`)
+
+      const analysis = {
         taskFingerprint: fingerprintOutput
+      }
+
+      await writeFile(fingerprintFile, JSON.stringify(analysis, null, 2))
+      console.log(`Fingerprint saved to: ${fingerprintFile}`)
+
+      return {
+        taskFingerprint: fingerprintOutput,
+        fingerprintFile
       }
     }
 
@@ -149,9 +166,9 @@ export const fingerprint = createTask({
     }
 
     const entryPoint = path.join(cwd, taskDescriptor.path)
-    const forgePath = await ensureForgeFolder()
-    const outputFile = path.join(forgePath, `${descriptorName}.js`)
-    const fingerprintsFile = path.join(forgePath, `${descriptorName}.fingerprints.json`)
+    const fingerprintsPath = await ensureFingerprintsFolder(cwd, forgeJson)
+    const outputFile = path.join(fingerprintsPath, `${descriptorName}.js`)
+    const fingerprintsFile = path.join(fingerprintsPath, `${descriptorName}.fingerprints.json`)
 
     console.log(`Generating bundle with fingerprints for task: ${descriptorName}`)
     console.log(`Entry point: ${entryPoint}`)
@@ -177,7 +194,9 @@ export const fingerprint = createTask({
       description: fp.description,
       inputSchema: fp.inputSchema,
       outputType: fp.outputType,
-      boundaries: fp.boundaries
+      boundaries: fp.boundaries,
+      errors: fp.errors, // Preserve errors from analyzeTaskFile
+      analysisMetadata: fp.analysisMetadata // Preserve metadata from analyzeTaskFile
     }))
 
     // Create fingerprint result
