@@ -133,9 +133,15 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
         cache
       })
     } else if (taskName === 'task:run') {
+      const { input, ...restArgs } = args as { input?: string }
+      
+      // If --input is provided, parse it as JSON and use that
+      // Otherwise, use the regular arguments spread from minimist
+      const taskArgs = input ? JSON.parse(input) : restArgs
+      
       result = await task.run({
         descriptorName: action,
-        args
+        args: taskArgs
       })
     } else if (taskName === 'fixture:download') {
       const { uuid } = args as { uuid: string }
