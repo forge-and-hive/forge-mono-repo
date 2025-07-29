@@ -123,19 +123,19 @@ export const createUser = createTask({
   boundaries,
   fn: async function ({ name, email, age }, { saveUser, findUser, sendWelcomeEmail }) {
     console.log(`Creating user: ${email}`);
-    
+
     // Check if user exists
     const existing = await findUser(email);
     if (existing) {
       throw new Error('User already exists');
     }
-    
+
     // Create user
     const userId = await saveUser({ name, email, age });
-    
+
     // Send welcome email
     await sendWelcomeEmail(email, `Welcome ${name}!`);
-    
+
     return { success: true, userId };
   }
 })
@@ -275,14 +275,35 @@ forge task:remove user:createUser
 ### 1. Schema Design
 
 ```typescript
-// Good: Specific, validated schema
+// Available schema types and validations
 const schema = new Schema({
-  userId: Schema.string().uuid(),
-  status: Schema.enum(['active', 'inactive', 'pending']),
-  metadata: Schema.object({
-    source: Schema.string(),
-    timestamp: Schema.date()
-  }).optional()
+  // Basic types
+  name: Schema.string(),
+  age: Schema.number(),
+  isActive: Schema.boolean(),
+  createdAt: Schema.date(),
+
+  // String validations
+  email: Schema.string().email(),
+  password: Schema.string().min(8).max(50),
+  username: Schema.string().regex(/^[a-zA-Z0-9_]+$/),
+
+  // Number validations
+  score: Schema.number().min(0).max(100),
+
+  // Arrays
+  tags: Schema.array(Schema.string()),
+  scores: Schema.array(Schema.number()),
+
+  // Records (key-value objects)
+  stringData: Schema.stringRecord(),        // Record<string, string>
+  numberData: Schema.numberRecord(),        // Record<string, number>
+  booleanData: Schema.booleanRecord(),      // Record<string, boolean>
+  mixedData: Schema.mixedRecord(),          // Record<string, string | number | boolean>
+
+  // Optional fields
+  description: Schema.string().optional(),
+  metadata: Schema.mixedRecord().optional()
 });
 ```
 
@@ -315,11 +336,11 @@ const myTask = createTask({
     try {
       console.log(`Processing payment: $${amount}`);
       const result = await chargePayment(amount, token);
-      
+
       if (!result.success) {
         throw new Error(`Payment failed: ${result.error}`);
       }
-      
+
       return { success: true, transactionId: result.id };
     } catch (error) {
       // Optional: Custom error handling (e.g., update order status to failed)
@@ -368,62 +389,6 @@ describe('createUser task', () => {
       email: 'test@example.com'
     });
   });
-});
-```
-
-## Common Patterns
-
-### 1. CLI Task
-
-```typescript
-const initProject = createTask({
-  name: 'initProject',
-  description: 'Initialize a new ForgeHive project',
-  schema: new Schema({
-    projectName: Schema.string(),
-    dryRun: Schema.boolean().optional()
-  }),
-  boundaries: {
-    writeFile: async (path, content) => { /* ... */ },
-    mkdir: async (path) => { /* ... */ }
-  },
-  fn: async ({ projectName, dryRun }, { writeFile, mkdir }) => {
-    const configPath = `${projectName}/forge.json`;
-    const config = { name: projectName, version: '1.0.0' };
-    
-    if (!dryRun) {
-      await mkdir(projectName);
-      await writeFile(configPath, JSON.stringify(config, null, 2));
-    }
-    
-    return { created: !dryRun, configPath };
-  }
-});
-```
-
-### 2. API Handler Task
-
-```typescript
-const handleUserRegistration = createTask({
-  name: 'handleUserRegistration',
-  description: 'Handle user registration API request',
-  schema: new Schema({
-    name: Schema.string(),
-    email: Schema.string().email(),
-    password: Schema.string().min(8)
-  }),
-  boundaries: {
-    hashPassword: async (password) => { /* ... */ },
-    createUser: async (userData) => { /* ... */ },
-    sendWelcome: async (email, name) => { /* ... */ }
-  },
-  fn: async ({ name, email, password }, { hashPassword, createUser, sendWelcome }) => {
-    const hashedPassword = await hashPassword(password);
-    const user = await createUser({ name, email, password: hashedPassword });
-    await sendWelcome(email, name);
-    
-    return { userId: user.id, message: 'Registration successful' };
-  }
 });
 ```
 
