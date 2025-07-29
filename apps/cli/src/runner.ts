@@ -27,6 +27,8 @@ import { bundle as bundleRunner } from './tasks/runner/bundle'
 
 import { download as downloadFixture } from './tasks/fixture/download'
 
+import { download as downloadDocs } from './tasks/docs/download'
+
 import { add as addProfile } from './tasks/auth/add'
 import { switchProfile } from './tasks/auth/switch'
 import { list as listProfiles } from './tasks/auth/list'
@@ -69,6 +71,9 @@ runner.load('runner:bundle', bundleRunner)
 
 // Fixture commands
 runner.load('fixture:download', downloadFixture)
+
+// Docs commands
+runner.load('docs:download', downloadDocs)
 
 // Auth commands
 runner.load('auth:add', addProfile)
@@ -163,6 +168,12 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
     } else if (taskName === 'auth:switch' || taskName === 'auth:remove') {
       result = await task.run({
         profileName: action
+      })
+    } else if (taskName === 'docs:download') {
+      const { path } = args as { path?: string }
+
+      result = await task.run({
+        path
       })
     } else {
       result = await task.run(args)

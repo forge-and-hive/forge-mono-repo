@@ -1,6 +1,6 @@
 {
   "name": "@forgehive/forge-cli",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "TypeScript CLI application",
   "license": "MIT",
   "main": "dist/index.js",
