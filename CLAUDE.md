@@ -20,6 +20,17 @@ Individual packages support:
 - `cd apps/cli && pnpm dev <command>` - Run CLI commands in development mode
 - `cd apps/cli && pnpm start <command>` - Run CLI commands from built version
 
+### CLI Task Development Workflow
+When creating new CLI tasks:
+1. **Create task**: `forge task:create domain:taskName` (uses the forge CLI)
+2. **Implement task**: Modify the generated file following the Task and Boundaries pattern
+3. **Register task**: Add import and runner.load() in `apps/cli/src/runner.ts`
+4. **Add handler logic**: Add specific handler in runner.ts if needed for argument parsing
+5. **Build CLI**: `cd apps/cli && pnpm build` (required after changes)
+6. **Test task**: `forge domain:taskName [options]` (uses the built forge CLI)
+
+**Important**: Always run `pnpm build` in apps/cli after making changes before testing with `forge` commands.
+
 ## Project Architecture
 
 ### Monorepo Structure

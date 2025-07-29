@@ -114,6 +114,10 @@
     "task:invoke": {
       "path": "src/tasks/task/invoke.ts",
       "handler": "invoke"
+    },
+    "docs:download": {
+      "path": "src/tasks/docs/download.ts",
+      "handler": "download"
     }
   },
   "runners": {}
