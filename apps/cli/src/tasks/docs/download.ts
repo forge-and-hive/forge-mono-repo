@@ -52,7 +52,6 @@ export const download = createTask({
   schema,
   boundaries,
   fn: async function ({ path: customPath }, { fetchFile, getCurrentWorkingDirectory, createDirectory, writeFile, checkFileExists }) {
-
     // Determine the target path
     const targetPath = customPath || 'docs/forge.md'
     const cwd = await getCurrentWorkingDirectory()
