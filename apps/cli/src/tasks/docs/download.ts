@@ -10,6 +10,8 @@ import path from 'path'
 const name = 'docs:download'
 const description = 'Download the ForgeHive LLM guide from GitHub to local project'
 
+const LLM_GUIDE_URL = 'https://raw.githubusercontent.com/forge-and-hive/forge-mono-repo/refs/heads/main/docs/llm.md'
+
 const schema = new Schema({
   path: Schema.string().optional()
 })
@@ -50,7 +52,6 @@ export const download = createTask({
   schema,
   boundaries,
   fn: async function ({ path: customPath }, { fetchFile, getCurrentWorkingDirectory, createDirectory, writeFile, checkFileExists }) {
-    const LLM_GUIDE_URL = 'https://raw.githubusercontent.com/forge-and-hive/forge-mono-repo/refs/heads/main/docs/llm.md'
 
     // Determine the target path
     const targetPath = customPath || 'docs/forge.md'

@@ -5,7 +5,7 @@ This guide explains how to create, run, publish, and remove tasks in application
 **Note**: This documentation is specifically for the CLI-based task management system. Task names and structure are based on the `@forgehive/task` package.
 
 **Package Versions:**
-- `@forgehive/forge-cli`: v0.3.8
+- `@forgehive/forge-cli`: v0.3.9
 - `@forgehive/task`: v0.2.5
 
 ## Overview
@@ -104,6 +104,10 @@ import { Schema } from '@forgehive/schema'
 const name = 'user:createUser'
 const description = 'Create a new user account with email notification'
 
+// Constants defined at top for easy identification
+const DEFAULT_USER_ROLE = 'user'
+const WELCOME_EMAIL_SUBJECT = 'Welcome to our platform!'
+
 const schema = new Schema({
   name: Schema.string(),
   email: Schema.string().email(),
@@ -130,11 +134,11 @@ export const createUser = createTask({
       throw new Error('User already exists');
     }
 
-    // Create user
-    const userId = await saveUser({ name, email, age });
+    // Create user with default role
+    const userId = await saveUser({ name, email, age, role: DEFAULT_USER_ROLE });
 
-    // Send welcome email
-    await sendWelcomeEmail(email, `Welcome ${name}!`);
+    // Send welcome email using constant
+    await sendWelcomeEmail(email, WELCOME_EMAIL_SUBJECT);
 
     return { success: true, userId };
   }
@@ -144,10 +148,11 @@ export const createUser = createTask({
 ### Key Principles for Task Creation
 
 1. **Name and Description**: Always provide clear, descriptive names and descriptions
-2. **Schema Definition**: Use Zod-based schemas to validate all inputs
-3. **Boundary Isolation**: All external operations (network, file system, database, etc.) go in boundaries
-4. **Pure Logic**: Task logic should be deterministic and testable
-5. **Destructuring**: Use destructuring for cleaner code: `({ name, email }, { saveUser, sendEmail })`
+2. **Constants at Top**: Define constants like URLs, default values after name/description for easy identification
+3. **Schema Definition**: Use Zod-based schemas to validate all inputs
+4. **Boundary Isolation**: All external operations (network, file system, database, etc.) go in boundaries
+5. **Pure Logic**: Task logic should be deterministic and testable
+6. **Destructuring**: Use destructuring for cleaner code: `({ name, email }, { saveUser, sendEmail })`
 
 ### What Goes in Boundaries
 
