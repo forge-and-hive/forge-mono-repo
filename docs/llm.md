@@ -325,6 +325,16 @@ const boundaries = {
 ### 3. Error Handling
 
 ```typescript
+const paymentSchema = new Schema({
+  amount: Schema.number().min(0),
+  token: Schema.string()
+});
+
+const boundaries = {
+  chargePayment: async (amount, token) => { /* Payment logic */ },
+  updateOrderStatus: async (status) => { /* Update status */ }
+};
+
 const myTask = createTask({
   name: 'processPayment',
   description: 'Process user payment',
