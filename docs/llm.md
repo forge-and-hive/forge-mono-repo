@@ -1,11 +1,11 @@
 # LLM Guide: ForgeHive Task Management (v0)
 
-This guide explains how to create, run, publish, and remove tasks in the ForgeHive ecosystem for Large Language Models (LLMs) working with this codebase.
+This guide explains how to create, run, publish, and remove tasks in applications using ForgeHive. It's designed for Large Language Models (LLMs) working on projects that have ForgeHive integrated as a task management system.
 
 **Note**: This documentation is specifically for the CLI-based task management system. Task names and structure are based on the `@forgehive/task` package.
 
 **Package Versions:**
-- `@forgehive/forge-cli`: v0.3.7
+- `@forgehive/forge-cli`: v0.3.8
 - `@forgehive/task`: v0.2.5
 
 ## Overview
@@ -113,8 +113,7 @@ const schema = new Schema({
 const boundaries = {
   saveUser: async (userData) => { /* DB save logic */ },
   findUser: async (email) => { /* DB find logic */ },
-  sendWelcomeEmail: async (to, subject) => { /* Email sending logic */ },
-  logInfo: (message) => { /* Logging logic */ }
+  sendWelcomeEmail: async (to, subject) => { /* Email sending logic */ }
 }
 
 export const createUser = createTask({
@@ -122,8 +121,8 @@ export const createUser = createTask({
   description,
   schema,
   boundaries,
-  fn: async function ({ name, email, age }, { saveUser, findUser, sendWelcomeEmail, logInfo }) {
-    logInfo(`Creating user: ${email}`);
+  fn: async function ({ name, email, age }, { saveUser, findUser, sendWelcomeEmail }) {
+    console.log(`Creating user: ${email}`);
     
     // Check if user exists
     const existing = await findUser(email);
@@ -148,7 +147,7 @@ export const createUser = createTask({
 2. **Schema Definition**: Use Zod-based schemas to validate all inputs
 3. **Boundary Isolation**: All external operations (network, file system, database, etc.) go in boundaries
 4. **Pure Logic**: Task logic should be deterministic and testable
-5. **Destructuring**: Use destructuring for cleaner code: `({ name, email }, { database, logger })`
+5. **Destructuring**: Use destructuring for cleaner code: `({ name, email }, { saveUser, sendEmail })`
 
 ### What Goes in Boundaries
 
@@ -310,11 +309,11 @@ const myTask = createTask({
   description: 'Process user payment',
   schema: paymentSchema,
   boundaries,
-  fn: async ({ amount, token }, { chargePayment, logger, updateOrderStatus }) => {
+  fn: async ({ amount, token }, { chargePayment, updateOrderStatus }) => {
     // Try-catch is optional - tasks handle errors automatically
     // Use it only when you need custom error handling logic
     try {
-      logger.info(`Processing payment: $${amount}`);
+      console.log(`Processing payment: $${amount}`);
       const result = await chargePayment(amount, token);
       
       if (!result.success) {
@@ -325,7 +324,7 @@ const myTask = createTask({
     } catch (error) {
       // Optional: Custom error handling (e.g., update order status to failed)
       await updateOrderStatus('failed');
-      logger.error('Payment processing failed', error);
+      console.error('Payment processing failed', error);
       throw error; // Re-throw to preserve error context
     }
   }
