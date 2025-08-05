@@ -1,6 +1,6 @@
-# LLM Guide: ForgeHive Task Management (v0)
+# LLM Guide: Forge&Hive Task Management (v0)
 
-This guide explains how to create, run, publish, and remove tasks in applications using ForgeHive. It's designed for Large Language Models (LLMs) working on projects that have ForgeHive integrated as a task management system.
+This guide explains how to create, run, publish, and remove tasks in applications using Forge&Hive. It's designed for Large Language Models (LLMs) working on projects that have Forge&Hive integrated as a task management system.
 
 **Note**: This documentation is specifically for the CLI-based task management system. Task names and structure are based on the `@forgehive/task` package.
 
@@ -10,7 +10,7 @@ This guide explains how to create, run, publish, and remove tasks in application
 
 ## Overview
 
-ForgeHive uses a "Task and Boundaries" pattern where:
+Forge&Hive uses a "Task and Boundaries" pattern where:
 - **Tasks** are black boxes with validated inputs/outputs using schemas
 - **Boundaries** are explicit interfaces to external dependencies (databases, APIs, file system, etc.)
 - All external calls (network requests, file operations, non-deterministic operations) must go through boundaries
@@ -434,8 +434,8 @@ const myTask = createTask({
 // Throws on error
 const result = await myTask.run(input);
 
-// Safe execution
-const [error, result, boundaryData] = await myTask.safeRun(input);
+// Safe execution (recommended)
+const [result, error, executionRecord] = await myTask.safeRun(input);
 ```
 
 ### Testing
@@ -447,4 +447,4 @@ myTask.mockBoundary('boundaryName', createMockBoundary(jest.fn()));
 myTask.resetMocks();
 ```
 
-This guide provides the essential patterns for working with ForgeHive tasks. Remember: keep tasks focused, isolate external operations in boundaries, and always validate inputs with schemas.
+This guide provides the essential patterns for working with Forge&Hive tasks. Remember: keep tasks focused, isolate external operations in boundaries, and always validate inputs with schemas.
