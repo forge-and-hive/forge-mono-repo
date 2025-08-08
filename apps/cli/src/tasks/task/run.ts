@@ -109,6 +109,7 @@ export const run = createTask({
     } catch (error) {
       // Profile not found or not configured, continue without it
       console.log('No profile found, logs will not be sent to remote API')
+      console.log('===============================================')
     }
 
     // Ensure log folder exists
