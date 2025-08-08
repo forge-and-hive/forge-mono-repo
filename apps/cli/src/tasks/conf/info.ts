@@ -27,7 +27,29 @@ export const info = createTask({
     const packageJsonContent = await readFile(packageJsonPath)
     const packageJson = JSON.parse(packageJsonContent)
 
-    const config = await loadConfig({})
+    let config
+    try {
+      config = await loadConfig({})
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('ENOENT')) {
+        console.log('============ Forge CLI Information ============')
+        console.log('===============================================')
+        console.log()
+        console.log(`Version: ${packageJson.version}`)
+        console.log()
+        console.log('❌ No forge.json file found in current directory.')
+        console.log('   Run "forge init" to create a new Forge project.')
+        console.log()
+        console.log('===============================================')
+        return {
+          version: packageJson.version,
+          profile: null,
+          paths: null,
+          error: 'No forge.json found'
+        }
+      }
+      throw error
+    }
 
     // Display human-friendly information
     console.log('===============================================')

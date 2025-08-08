@@ -43,6 +43,7 @@ export const load = createTask({
       profiles = JSON.parse(content) as Profiles
     } catch (_error) {
       console.log('Creating profiles.json')
+      console.log('===============================================')
       await fs.writeFile(profilesPath, '{"profiles": [], "default": ""}')
     }
 

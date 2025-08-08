@@ -31,15 +31,13 @@ const boundaries = {
   loadCurrentProfile: loadCurrentProfile.asBoundary(),
   bundleCreate: bundleCreate.asBoundary(),
   bundleLoad: bundleLoad.asBoundary(),
-  verifyLogFolder: async (logsPath: string): Promise<boolean> => {
-    // return true if the folder exists
+  ensureLogFolder: async (logsPath: string): Promise<void> => {
+    // create the folder if it doesn't exist
     try {
       await fs.access(logsPath)
     } catch (error) {
-      return false
+      await fs.mkdir(logsPath, { recursive: true })
     }
-
-    return true
   },
   ensureBuildsFolder: async (): Promise<string> => {
     const buildsPath = path.join(os.homedir(), '.forge', 'builds')
@@ -90,7 +88,7 @@ export const run = createTask({
     loadConf,
     bundleCreate,
     bundleLoad,
-    verifyLogFolder,
+    ensureLogFolder,
     ensureBuildsFolder,
     loadCurrentProfile,
     sendLogToAPI
@@ -111,14 +109,12 @@ export const run = createTask({
     } catch (error) {
       // Profile not found or not configured, continue without it
       console.log('No profile found, logs will not be sent to remote API')
+      console.log('===============================================')
     }
 
-    // Verify if log folder exists
+    // Ensure log folder exists
     const logFolderPath = path.join(process.cwd(), forge.paths.logs)
-    const logFolderExists = await verifyLogFolder(logFolderPath)
-    if (!logFolderExists) {
-      throw new Error(`Log folder "${logFolderPath}" does not exist`)
-    }
+    await ensureLogFolder(logFolderPath)
 
     // Prepare paths
     const logsPath = path.join(logFolderPath, descriptorName)
