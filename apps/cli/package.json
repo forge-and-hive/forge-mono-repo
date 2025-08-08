@@ -1,6 +1,6 @@
 {
   "name": "@forgehive/forge-cli",
-  "version": "0.3.9",
+  "version": "0.3.10-preview.1",
   "description": "TypeScript CLI application",
   "license": "MIT",
   "main": "dist/index.js",
@@ -17,7 +17,8 @@
       "@forgehive/task": "^0.2.5",
       "esbuild": "^0.25.0",
       "handlebars": "^4.7.8",
-      "minimist": "^1.2.8"
+      "minimist": "^1.2.8",
+      "typescript": "^5.3.3"
     }
   },
   "scripts": {
@@ -38,7 +39,8 @@
     "dotenv": "^16.5.0",
     "esbuild": "^0.25.0",
     "handlebars": "^4.7.8",
-    "minimist": "^1.2.8"
+    "minimist": "^1.2.8",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
