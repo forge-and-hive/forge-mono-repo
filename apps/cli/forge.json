@@ -118,6 +118,10 @@
     "docs:download": {
       "path": "src/tasks/docs/download.ts",
       "handler": "download"
+    },
+    "project:create": {
+      "path": "src/tasks/project/create.ts",
+      "handler": "create"
     }
   },
   "runners": {}

@@ -25,19 +25,33 @@ export const list = createTask({
       return { status: 'Ok', profiles: [] }
     }
 
-    console.log('Available profiles:')
+    // Show current profile
+    const currentProfile = profiles.profiles.find(profile => profile.name === profiles.default)
+    if (currentProfile) {
+      console.log('Current Profile:')
+      console.log(`  Name: ${currentProfile.name}`)
+      console.log(`  API Key: ${currentProfile.apiKey}`)
+      console.log(`  URL: ${currentProfile.url}`)
+      console.log('')
+    }
 
-    profiles.profiles.forEach(profile => {
-      const isDefault = profile.name === profiles.default
-      const prefix = isDefault ? '* ' : '  '
-      console.log(`${prefix}${profile.name} - API Key: ${profile.apiKey}`)
-    })
+    console.log('Available profiles:\n')
+
+    const tableData = profiles.profiles.map(profile => ({
+      Name: profile.name,
+      'API Key': profile.apiKey,
+      URL: profile.url
+    }))
+
+    console.table(tableData, ['Name', 'API Key', 'URL'])
 
     console.log('\nUse auth:add to create or update a profile')
-    console.log('\nUse auth:switch to switch to a profile')
+    console.log('Use auth:switch [name] or auth:switch [index] to switch profiles')
+    console.log('========================================')
 
     return {
-      default: profiles.default
+      default: profiles.default,
+      profiles: tableData
     }
   }
 })

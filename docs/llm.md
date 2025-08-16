@@ -82,11 +82,10 @@ export const createUser = createTask({
   boundaries,
   fn: async function (argv, boundaries) {
     console.log('input:', argv)
-    console.log('boundaries:', boundaries)
+    console.log('boundaries:', Object.keys(boundaries))
     // Your task implementation goes here
-    const status = { status: 'Ok' }
 
-    return status
+    return {}
   }
 })
 ```
@@ -153,6 +152,7 @@ export const createUser = createTask({
 4. **Boundary Isolation**: All external operations (network, file system, database, etc.) go in boundaries
 5. **Pure Logic**: Task logic should be deterministic and testable
 6. **Destructuring**: Use destructuring for cleaner code: `({ name, email }, { saveUser, sendEmail })`
+7. **Return Values**: Return meaningful data only. **Avoid `{ status: 'Ok' }` or `{ status: 'error' }` patterns** - the framework handles success/error states automatically
 
 ### What Goes in Boundaries
 
@@ -369,7 +369,32 @@ const myTask = createTask({
 
 **Note**: Try-catch blocks are optional in tasks. The task system automatically handles errors. Use try-catch only when you need custom error handling logic, such as updating database state or performing cleanup actions.
 
-### 4. Testing Tasks
+### 4. Return Value Best Practices
+
+**❌ Don't return status objects:**
+```typescript
+// BAD - Don't do this
+return { status: 'Ok' };
+return { status: 'success' };
+return { status: 'error', message: 'Failed' };
+```
+
+**✅ Return meaningful data:**
+```typescript
+// GOOD - Return actual data
+return { userId: 'user-123', email: 'user@example.com' };
+return { count: 42, items: [...] };
+return {}; // If no data to return
+```
+
+**Why avoid status objects?**
+- The framework automatically handles success/error states
+- Tasks that complete without throwing are considered successful
+- Tasks that throw errors are automatically handled as failures
+- Status objects add unnecessary boilerplate and confusion
+- Return values should contain actual business data that calling code needs
+
+### 5. Testing Tasks
 
 ```typescript
 import { createMockBoundary } from './testUtils';
