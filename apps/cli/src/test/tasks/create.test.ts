@@ -32,11 +32,10 @@ export const newTask = createTask({
   boundaries,
   fn: async function (argv, boundaries) {
     console.log('input:', argv)
-    console.log('boundaries:', boundaries)
+    console.log('boundaries:', Object.keys(boundaries))
     // Your task implementation goes here
-    const status = { status: 'Ok' }
 
-    return status
+    return {}
   }
 })
 
@@ -103,5 +102,7 @@ describe('Create task', () => {
     const forgeContent = await fs.promises.readFile(path.join(rootDir, 'forge.json'), 'utf-8') as string
     const forgeConf = JSON.parse(forgeContent)
     expect(forgeConf.tasks['sample:newTask']).toBeDefined()
+    expect(forgeConf.tasks['sample:newTask'].uuid).toBeDefined()
+    expect(typeof forgeConf.tasks['sample:newTask'].uuid).toBe('string')
   })
 })

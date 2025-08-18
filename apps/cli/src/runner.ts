@@ -20,7 +20,6 @@ import { describe as describeTask } from './tasks/task/describe'
 import { fingerprint as fingerprintTask } from './tasks/task/fingerprint'
 import { invoke as invokeTask } from './tasks/task/invoke'
 
-
 import { create as createRunner } from './tasks/runner/create'
 import { remove as removeRunner } from './tasks/runner/remove'
 import { bundle as bundleRunner } from './tasks/runner/bundle'
@@ -33,6 +32,10 @@ import { add as addProfile } from './tasks/auth/add'
 import { switchProfile } from './tasks/auth/switch'
 import { list as listProfiles } from './tasks/auth/list'
 import { remove as removeProfile } from './tasks/auth/remove'
+
+import { create as createProject } from './tasks/project/create'
+import { link as linkProject } from './tasks/project/link'
+import { unlink as unlinkProject } from './tasks/project/unlink'
 
 interface CliParsedArguments extends RunnerParsedArguments {
   action: string;
@@ -80,6 +83,11 @@ runner.load('auth:add', addProfile)
 runner.load('auth:switch', switchProfile)
 runner.load('auth:list', listProfiles)
 runner.load('auth:remove', removeProfile)
+
+// Project commands
+runner.load('project:create', createProject)
+runner.load('project:link', linkProject)
+runner.load('project:unlink', unlinkProject)
 
 // Set handler
 runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
@@ -167,7 +175,7 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
       })
     } else if (taskName === 'auth:switch' || taskName === 'auth:remove') {
       result = await task.run({
-        profileName: action
+        profileName: String(action)
       })
     } else if (taskName === 'docs:download') {
       const { path } = args as { path?: string }
@@ -175,6 +183,20 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
       result = await task.run({
         path
       })
+    } else if (taskName === 'project:create') {
+      const { projectName, description } = args as { projectName?: string, description?: string }
+
+      result = await task.run({
+        projectName,
+        description
+      })
+    } else if (taskName === 'project:link') {
+      const { uuid } = args as { uuid: string }
+      result = await task.run({
+        uuid
+      })
+    } else if (taskName === 'project:unlink') {
+      result = await task.run({})
     } else {
       result = await task.run(args)
 
@@ -183,7 +205,7 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
       }
     }
 
-    if (taskName === 'task:describe' || taskName === 'task:list') {
+    if (taskName === 'task:describe' || taskName === 'task:list' || taskName === 'auth:list') {
       silent = true
     }
 

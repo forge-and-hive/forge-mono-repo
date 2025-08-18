@@ -1,6 +1,6 @@
 // TASK: switch
 // Run this task with:
-// forge task:run auth:switch --profileName [name]
+// forge auth:switch [name] or forge auth:switch [index]
 
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
@@ -31,23 +31,39 @@ export const switchProfile = createTask({
     // Load profiles
     const profiles = await loadProfiles({})
 
-    // Check if profile exists
-    const profileExists = profiles.profiles.some(profile => profile.name === profileName)
+    if (profiles.profiles.length === 0) {
+      throw new Error('No profiles found. Use auth:add to create one.')
+    }
 
-    if (!profileExists) {
-      throw new Error(`Profile "${profileName}" not found. Use auth:list to see available profiles.`)
+    let targetProfile: string
+
+    // Check if profileName is a number (index)
+    const indexInput = parseInt(profileName, 10)
+    if (!isNaN(indexInput)) {
+      // Using index
+      if (indexInput < 0 || indexInput >= profiles.profiles.length) {
+        throw new Error(`Profile index ${indexInput} is out of range. Use auth:list to see available profiles (0-${profiles.profiles.length - 1}).`)
+      }
+      targetProfile = profiles.profiles[indexInput].name
+    } else {
+      // Using profile name
+      const profileExists = profiles.profiles.some(profile => profile.name === profileName)
+      if (!profileExists) {
+        throw new Error(`Profile "${profileName}" not found. Use auth:list to see available profiles.`)
+      }
+      targetProfile = profileName
     }
 
     // Update default profile
-    profiles.default = profileName
+    profiles.default = targetProfile
 
     // Save updated profiles
     await persistProfiles(profiles)
 
-    console.log(`Switched to profile: ${profileName}`)
+    console.log(`Switched to profile: ${targetProfile}`)
 
     return {
-      default: profileName
+      default: targetProfile
     }
   }
 })

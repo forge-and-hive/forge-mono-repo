@@ -10,6 +10,7 @@ export interface RunnerDescriptor {
 export interface TaskDescriptor {
   path: string
   handler: string
+  uuid?: string
 }
 
 export interface Infra {

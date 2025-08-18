@@ -1,5 +1,6 @@
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
+import { v4 as uuidv4 } from 'uuid'
 
 import Handlebars from 'handlebars'
 import path from 'path'
@@ -38,11 +39,10 @@ export const {{ taskName }} = createTask({
   boundaries,
   fn: async function (argv, boundaries) {
     console.log('input:', argv)
-    console.log('boundaries:', boundaries)
+    console.log('boundaries:', Object.keys(boundaries))
     // Your task implementation goes here
-    const status = { status: 'Ok' }
 
-    return status
+    return {}
   }
 })
 
@@ -155,7 +155,8 @@ export const createTaskCommand = createTask({
 
     forge.tasks[descriptor] = {
       path: `${taskPath}/${fileName}`,
-      handler: taskName
+      handler: taskName,
+      uuid: uuidv4()
     }
 
     await persistConf(forge, cwd)

@@ -118,6 +118,20 @@
     "docs:download": {
       "path": "src/tasks/docs/download.ts",
       "handler": "download"
+    },
+    "project:create": {
+      "path": "src/tasks/project/create.ts",
+      "handler": "create"
+    },
+    "project:link": {
+      "path": "src/tasks/project/link.ts",
+      "handler": "link",
+      "uuid": "cb9f82e1-d397-46d9-9f0d-2b0e3becbfa1"
+    },
+    "project:unlink": {
+      "path": "src/tasks/project/unlink.ts",
+      "handler": "unlink",
+      "uuid": "414d37de-793c-4d01-899d-69515f5e0948"
     }
   },
   "runners": {}
