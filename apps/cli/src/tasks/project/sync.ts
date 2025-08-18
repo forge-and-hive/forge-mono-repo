@@ -113,7 +113,7 @@ export const sync = createTask({
         configUpdated = true
         console.log(`  ➕ Generated UUID for task: ${taskDescriptor}`)
       }
-      
+
       // Use the task descriptor (key) as the name for the API
       const taskName = taskDescriptor
       tasksToSync.push({
@@ -125,11 +125,11 @@ export const sync = createTask({
     // Save config if we added UUIDs
     if (configUpdated) {
       await persistConf(forge, cwd)
-      console.log(`  💾 Updated forge.json with new UUIDs`)
+      console.log('  💾 Updated forge.json with new UUIDs')
     }
 
     if (tasksToSync.length === 0) {
-      console.log(`  ℹ️  No tasks found to sync`)
+      console.log('  ℹ️  No tasks found to sync')
       return { status: 'no-tasks', message: 'No tasks found in project' }
     }
 
@@ -148,35 +148,35 @@ export const sync = createTask({
       if (result.success && result.data) {
         const { summary, results } = result.data
 
-        console.log(`\n  ✅ Sync completed successfully!`)
+        console.log('\\n  ✅ Sync completed successfully!')
         console.log(`     Total tasks: ${summary.total}`)
         console.log(`     Created: ${summary.created}`)
         console.log(`     Updated: ${summary.updated}`)
         console.log(`     Errors: ${summary.errors}`)
 
         if (results.created.length > 0) {
-          console.log(`\n  🆕 Created tasks:`)
+          console.log('\\n  🆕 Created tasks:')
           results.created.forEach(task => {
             console.log(`     • ${task.taskName} (${task.uuid})`)
           })
         }
 
         if (results.updated.length > 0) {
-          console.log(`\n  🔄 Updated tasks:`)
+          console.log('\\n  🔄 Updated tasks:')
           results.updated.forEach(task => {
             console.log(`     • ${task.taskName} (was: ${task.previousName}) (${task.uuid})`)
           })
         }
 
         if (results.errors.length > 0) {
-          console.log(`\n  ❌ Tasks with errors:`)
+          console.log('\\n  ❌ Tasks with errors:')
           results.errors.forEach(task => {
             console.log(`     • ${task.taskName}: ${task.error} (${task.uuid})`)
           })
         }
 
         const projectUrl = `${profile.url}/dashboard/projects/${forge.project.uuid}`
-        console.log(`\n  🔗 View your project: ${projectUrl}`)
+        console.log(`\\n  🔗 View your project: ${projectUrl}`)
 
         return {
           status: 'success',
@@ -189,12 +189,12 @@ export const sync = createTask({
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      
+
       if (errorMessage.includes('No default profile')) {
-        console.log(`\n  ⚠️  No authentication profile found. Run "forge auth:add" to configure.`)
+        console.log('\\n  ⚠️  No authentication profile found. Run "forge auth:add" to configure.')
         return { status: 'no-auth', message: 'No authentication profile configured' }
       } else {
-        console.log(`\n  ❌ Sync failed: ${errorMessage}`)
+        console.log(`\\n  ❌ Sync failed: ${errorMessage}`)
         return { status: 'error', message: errorMessage }
       }
     }

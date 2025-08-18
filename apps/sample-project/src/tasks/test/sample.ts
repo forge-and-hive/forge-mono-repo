@@ -24,7 +24,9 @@ export const sample = createTask({
   schema,
   boundaries,
   fn: async function (argv, boundaries) {
+    // eslint-disable-next-line no-console
     console.log('input:', argv)
+    // eslint-disable-next-line no-console
     console.log('boundaries:', Object.keys(boundaries))
     // Your task implementation goes here
 

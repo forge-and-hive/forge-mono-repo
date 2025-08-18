@@ -133,7 +133,6 @@ const boundaries = {
       })
 
       if (response.ok) {
-        const data = await response.json()
         const taskUrl = `${baseUrl}/tasks/${taskUuid}`
         return { success: true, taskUrl }
       } else {
@@ -216,7 +215,7 @@ export const createTaskCommand = createTask({
         )
 
         if (result.success && result.taskUrl) {
-          console.log(`\n✅ Task created successfully in Hive!`)
+          console.log('\\n✅ Task created successfully in Hive!')
           console.log(`🔗 View your task: ${result.taskUrl}`)
         } else {
           console.log(`\n⚠️  Task created locally but could not sync to Hive: ${result.error}`)
@@ -224,7 +223,7 @@ export const createTaskCommand = createTask({
         }
       } catch (error) {
         // Silently continue if no profile is configured
-        console.log(`\n📝 Task created locally. Configure a profile with 'forge auth:add' to sync with Hive.`)
+        console.log('\\n📝 Task created locally. Configure a profile with \'forge auth:add\' to sync with Hive.')
       }
     }
 
