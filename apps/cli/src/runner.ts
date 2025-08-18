@@ -32,6 +32,7 @@ import { add as addProfile } from './tasks/auth/add'
 import { switchProfile } from './tasks/auth/switch'
 import { list as listProfiles } from './tasks/auth/list'
 import { remove as removeProfile } from './tasks/auth/remove'
+import { clear as clearProfiles } from './tasks/auth/clear'
 
 import { create as createProject } from './tasks/project/create'
 import { link as linkProject } from './tasks/project/link'
@@ -84,6 +85,7 @@ runner.load('auth:add', addProfile)
 runner.load('auth:switch', switchProfile)
 runner.load('auth:list', listProfiles)
 runner.load('auth:remove', removeProfile)
+runner.load('auth:clear', clearProfiles)
 
 // Project commands
 runner.load('project:create', createProject)
@@ -103,7 +105,7 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
   let silent = false
   const task = runner.getTask(taskName)
   if (!task) {
-    throw new Error(`Task "${taskName}" not found`)
+    throw new Error(`Forge command "${taskName}" not found`)
   }
 
   try {
@@ -111,6 +113,8 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
 
     const commandsWithDescriptor = ['task:create', 'task:remove', 'task:publish', 'task:describe', 'task:fingerprint']
     const commandsWithRunner = ['runner:create', 'runner:remove']
+    const commandsWithoutParams = ['project:unlink', 'project:sync', 'auth:clear']
+    const silentCommands = ['task:describe', 'task:list', 'auth:list', 'info']
 
     if (commandsWithDescriptor.includes(taskName)) {
       result = await task.run({ descriptorName: action })
@@ -197,19 +201,14 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
       result = await task.run({
         uuid
       })
-    } else if (taskName === 'project:unlink') {
-      result = await task.run({})
-    } else if (taskName === 'project:sync') {
+    } else if (commandsWithoutParams.includes(taskName)) {
       result = await task.run({})
     } else {
       result = await task.run(args)
 
-      if (taskName === 'info') {
-        silent = true
-      }
     }
 
-    if (taskName === 'task:describe' || taskName === 'task:list' || taskName === 'auth:list') {
+    if (silentCommands.includes(taskName)) {
       silent = true
     }
 

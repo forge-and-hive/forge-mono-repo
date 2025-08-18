@@ -48,6 +48,9 @@ export interface Profile {
   apiKey: string
   apiSecret: string
   url: string
+  teamName?: string
+  teamUuid?: string
+  userName?: string
 }
 
 export interface Profiles {

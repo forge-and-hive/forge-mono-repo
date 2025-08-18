@@ -32,6 +32,12 @@ export const list = createTask({
       console.log(`  Name: ${currentProfile.name}`)
       console.log(`  API Key: ${currentProfile.apiKey}`)
       console.log(`  URL: ${currentProfile.url}`)
+      if (currentProfile.userName) {
+        console.log(`  User: ${currentProfile.userName}`)
+      }
+      if (currentProfile.teamName) {
+        console.log(`  Team: ${currentProfile.teamName}`)
+      }
       console.log('')
     }
 
@@ -40,10 +46,12 @@ export const list = createTask({
     const tableData = profiles.profiles.map(profile => ({
       Name: profile.name,
       'API Key': profile.apiKey,
-      URL: profile.url
+      URL: profile.url,
+      Team: profile.teamName || 'Unknown',
+      User: profile.userName || 'Unknown'
     }))
 
-    console.table(tableData, ['Name', 'API Key', 'URL'])
+    console.table(tableData, ['Name', 'API Key', 'URL', 'Team', 'User'])
 
     console.log('\nUse auth:add to create or update a profile')
     console.log('Use auth:switch [name] or auth:switch [index] to switch profiles')
