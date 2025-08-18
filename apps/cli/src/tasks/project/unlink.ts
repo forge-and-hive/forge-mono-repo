@@ -50,6 +50,7 @@ export const unlink = createTask({
     }
 
     // Clean up undefined values by creating a new object without the uuid field
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { uuid, ...projectWithoutUuid } = updatedConf.project
     const finalConf: ForgeConf = {
       ...updatedConf,
