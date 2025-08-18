@@ -49,7 +49,7 @@ const boundaries = {
 
     return buildsPath
   },
-  sendLogToAPI: async (profile: Profile, projectName: string, record: ExecutionRecord): Promise<boolean> => {
+  sendLogToAPI: async (profile: Profile, projectName: string, record: ExecutionRecord, taskUuid?: string): Promise<{ success: boolean; logUuid?: string; taskUuid?: string }> => {
     try {
       const config = {
         projectName,
@@ -64,19 +64,25 @@ const boundaries = {
       const client = new HiveLogClient(config)
       const result = await client.sendLog(record)
 
-      if (result === 'success') {
+      if (result === 'success' || (typeof result === 'object' && 'uuid' in result)) {
         console.log('===============================================')
         console.log('Log sent to API... ', profile.name, profile.url)
-        return true
+
+        if (typeof result === 'object' && result && 'uuid' in result) {
+          const logResponse = result as { uuid: string }
+          return { success: true, logUuid: logResponse.uuid, taskUuid }
+        }
+
+        return { success: true, taskUuid }
       } else {
         console.error('Failed to send log to API:', profile.url)
-        return false
+        return { success: false }
       }
     } catch (e) {
       console.error('Failed to send log to API:', profile.url)
       const error = e as Error
       console.error('Error:', error.message)
-      return false
+      return { success: false }
     }
   }
 }
@@ -97,6 +103,7 @@ export const run = createTask({
     const forge: ForgeConf = await loadConf({})
     const taskDescriptor = forge.tasks[descriptorName as keyof typeof forge.tasks]
     const projectName = forge.project.name
+    const taskUuid = taskDescriptor?.uuid
 
     if (taskDescriptor === undefined) {
       throw new Error('Task is not defined on forge.json')
@@ -169,7 +176,11 @@ export const run = createTask({
 
     if (profile) {
       try {
-        await sendLogToAPI(profile, projectName, logItem)
+        const logResult = await sendLogToAPI(profile, projectName, logItem, taskUuid)
+
+        if (logResult.success && taskUuid) {
+          console.log(`🔗 View execution logs: ${profile.url}/tasks/${taskUuid}?tab=logs`)
+        }
       } catch (e) {
         console.error('Failed to send log to API:', e)
       }

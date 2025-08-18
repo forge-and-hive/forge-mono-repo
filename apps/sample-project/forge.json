@@ -18,15 +18,23 @@
   "tasks": {
     "stock:getPrice": {
       "path": "src/tasks/stock/getPrice.ts",
-      "handler": "getPrice"
+      "handler": "getPrice",
+      "uuid": "a45aafe3-8b01-4b58-b15d-9a96274858ee"
     },
     "stock:getPortfolio": {
       "path": "src/tasks/stock/getPortfolio.ts",
-      "handler": "getPortfolio"
+      "handler": "getPortfolio",
+      "uuid": "8879271f-7e84-4748-bd11-4d81acf29fb6"
     },
     "test:errors": {
       "path": "src/tasks/test/errors.ts",
-      "handler": "errors"
+      "handler": "errors",
+      "uuid": "fad2f735-ca09-4b8b-9c44-597de3641d28"
+    },
+    "test:sample": {
+      "path": "src/tasks/test/sample.ts",
+      "handler": "sample",
+      "uuid": "f9585124-7333-498b-ae06-628395c43385"
     }
   },
   "runners": {}

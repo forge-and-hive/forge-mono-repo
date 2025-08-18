@@ -8,6 +8,7 @@ import fs from 'fs/promises'
 import { camelCase } from '../../utils/camelCase'
 
 import { load } from '../conf/load'
+import { loadCurrent } from '../auth/loadCurrent'
 import { type TaskName, type ForgeConf } from '../types'
 
 // Define the template content directly in the code
@@ -55,6 +56,7 @@ const schema = new Schema({
 const boundaries = {
   // Load boundaries
   loadConf: load.asBoundary(),
+  loadCurrentProfile: loadCurrent.asBoundary(),
   loadTemplate: async (): Promise<string> => {
     return TASK_TEMPLATE
   },
@@ -106,6 +108,41 @@ const boundaries = {
   persistConf: async (forge: ForgeConf, cwd: string): Promise<void> => {
     const forgePath = path.join(cwd, 'forge.json')
     await fs.writeFile(forgePath, JSON.stringify(forge, null, 2))
+  },
+  createTaskInHive: async (
+    projectUuid: string,
+    taskUuid: string,
+    taskName: string,
+    description: string,
+    apiKey: string,
+    apiSecret: string,
+    baseUrl: string
+  ): Promise<{ success: boolean; taskUrl?: string; error?: string }> => {
+    try {
+      const url = `${baseUrl}/api/projects/${projectUuid}/tasks/${taskUuid}`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}:${apiSecret}`
+        },
+        body: JSON.stringify({
+          taskName,
+          description
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const taskUrl = `${baseUrl}/tasks/${taskUuid}`
+        return { success: true, taskUrl }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        return { success: false, error: errorData.error || `HTTP ${response.status}` }
+      }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Network error' }
+    }
   }
 }
 
@@ -118,7 +155,9 @@ export const createTaskCommand = createTask({
     loadConf,
     persistConf,
     parseTaskName,
-    getCwd
+    getCwd,
+    loadCurrentProfile,
+    createTaskInHive
   }) {
     const { taskName, fileName, descriptor, dir } = await parseTaskName(descriptorName)
     const cwd = await getCwd()
@@ -153,13 +192,41 @@ export const createTaskCommand = createTask({
       forge.tasks = {}
     }
 
+    const taskUuid = uuidv4()
     forge.tasks[descriptor] = {
       path: `${taskPath}/${fileName}`,
       handler: taskName,
-      uuid: uuidv4()
+      uuid: taskUuid
     }
 
     await persistConf(forge, cwd)
+
+    // Try to create task in Hive if user has profile and project UUID
+    if (forge.project.uuid) {
+      try {
+        const profile = await loadCurrentProfile({})
+        const result = await createTaskInHive(
+          forge.project.uuid,
+          taskUuid,
+          descriptor,
+          'Add task description here',
+          profile.apiKey,
+          profile.apiSecret,
+          profile.url
+        )
+
+        if (result.success && result.taskUrl) {
+          console.log(`\n✅ Task created successfully in Hive!`)
+          console.log(`🔗 View your task: ${result.taskUrl}`)
+        } else {
+          console.log(`\n⚠️  Task created locally but could not sync to Hive: ${result.error}`)
+          console.log(`🔗 Host: ${profile.url}`)
+        }
+      } catch (error) {
+        // Silently continue if no profile is configured
+        console.log(`\n📝 Task created locally. Configure a profile with 'forge auth:add' to sync with Hive.`)
+      }
+    }
 
     return { taskPath, fileName }
   }
