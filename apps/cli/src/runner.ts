@@ -36,6 +36,7 @@ import { remove as removeProfile } from './tasks/auth/remove'
 import { create as createProject } from './tasks/project/create'
 import { link as linkProject } from './tasks/project/link'
 import { unlink as unlinkProject } from './tasks/project/unlink'
+import { sync as syncProject } from './tasks/project/sync'
 
 interface CliParsedArguments extends RunnerParsedArguments {
   action: string;
@@ -88,6 +89,7 @@ runner.load('auth:remove', removeProfile)
 runner.load('project:create', createProject)
 runner.load('project:link', linkProject)
 runner.load('project:unlink', unlinkProject)
+runner.load('project:sync', syncProject)
 
 // Set handler
 runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
@@ -196,6 +198,8 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
         uuid
       })
     } else if (taskName === 'project:unlink') {
+      result = await task.run({})
+    } else if (taskName === 'project:sync') {
       result = await task.run({})
     } else {
       result = await task.run(args)

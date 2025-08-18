@@ -103,7 +103,7 @@ export class HiveLogClient {
     return finalMetadata
   }
 
-  async sendLog(record: ExecutionRecord, metadata?: Metadata): Promise<'success' | 'error' | 'silent'> {
+  async sendLog(record: ExecutionRecord, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess> {
     // Extract taskName from record
     const taskName = record.taskName || 'unknown-task'
 
@@ -128,7 +128,7 @@ export class HiveLogClient {
         metadata: finalMetadata
       }
 
-      await axios.post(logsUrl, {
+      const response = await axios.post(logsUrl, {
         projectName: this.projectName,
         taskName,
         logItem: JSON.stringify(logItem)
@@ -140,6 +140,12 @@ export class HiveLogClient {
       })
 
       log('Success: Sent log for task "%s"', taskName)
+
+      // Return the full response data if available
+      if (response.data && typeof response.data === 'object' && 'uuid' in response.data) {
+        return response.data as LogApiSuccess
+      }
+
       return 'success'
     } catch (e) {
       const error = e as Error
