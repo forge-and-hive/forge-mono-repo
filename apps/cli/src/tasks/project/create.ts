@@ -99,6 +99,7 @@ export const create = createTask({
     console.log('Project created successfully!')
     console.log(`Project UUID: ${result.project.uuid}`)
     console.log(`Project Name: ${result.project.projectName}`)
+    console.log(`\n🌐 View your project on the dashboard: ${profile.url}/dashboard/projects/${result.project.uuid}`)
 
     return {
       success: true,
