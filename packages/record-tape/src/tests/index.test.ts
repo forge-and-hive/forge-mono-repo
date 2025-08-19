@@ -54,8 +54,8 @@ describe('Base tests', () => {
 
   it('Should create a new tape with generic types', () => {
     const tape = new RecordTape({ path: emptyPath })
-    tape.push({ input: [{name: 'test'}], output: { age: 1 }, type: 'success', boundaries: {}, taskName: 'test' })
-    tape.push({ input: [{name: 'test'}], error: 'test', type: 'error', boundaries: {}, taskName: 'test' })
+    tape.push({ uuid: 'test-uuid-1', input: [{name: 'test'}], output: { age: 1 }, type: 'success', boundaries: {}, taskName: 'test' })
+    tape.push({ uuid: 'test-uuid-2', input: [{name: 'test'}], error: 'test', type: 'error', boundaries: {}, taskName: 'test' })
 
     const data = tape.getLog()
     expect(data.length).toBe(2)

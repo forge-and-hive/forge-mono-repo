@@ -14,6 +14,7 @@ describe('RecordTape Data Methods', () => {
 
     test('should return correct length after adding records', () => {
       const record1 = {
+        uuid: 'test-uuid-1',
         input: { userId: 1 },
         output: { name: 'John' },
         taskName: 'getUser',
@@ -22,6 +23,7 @@ describe('RecordTape Data Methods', () => {
       }
 
       const record2 = {
+        uuid: 'test-uuid-2',
         input: { userId: 2 },
         output: { name: 'Jane' },
         taskName: 'getUser',
@@ -38,6 +40,7 @@ describe('RecordTape Data Methods', () => {
 
     test('should return correct length after removing records', () => {
       const record = {
+        uuid: 'test-uuid',
         input: { userId: 1 },
         output: { name: 'John' },
         taskName: 'getUser',
@@ -64,6 +67,7 @@ describe('RecordTape Data Methods', () => {
 
     test('should return and remove first record', () => {
       const record1 = {
+        uuid: 'test-uuid',
         input: { userId: 1 },
         output: { name: 'John' },
         taskName: 'getUser',
