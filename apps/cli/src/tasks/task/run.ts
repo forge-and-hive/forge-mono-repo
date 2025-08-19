@@ -63,11 +63,11 @@ const boundaries = {
       console.log('')
       console.log('To enable remote logging with enhanced features:')
       if (!projectUuid) {
-        console.log('• Run "forge project:link" to connect to a Hive project')
+        console.log('• Use "forge project:create" to create a new project, or')
+        console.log('• Use "forge project:link" to connect to an existing project')
       }
       if (!taskUuid) {
-        console.log('• Task UUID missing - this should be auto-generated')
-        console.log('• Try recreating the task with "forge task:create"')
+        console.log('• Use "forge project:sync" to get the task to have UUID')
       }
       console.log('===============================================')
       return { success: true, skipRemoteLog: true }
