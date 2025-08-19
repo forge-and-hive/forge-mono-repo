@@ -285,4 +285,108 @@ describe('Task safeRun tests', () => {
       })
     })
   })
+
+  describe('Empty Schema Tasks', () => {
+    it('should accept undefined input and normalize to empty object', async () => {
+      const emptySchema = new Schema({})
+
+      const task = createTask({
+        name: 'emptySchemaTask',
+        schema: emptySchema,
+        boundaries: {},
+        fn: async (input) => {
+          return { received: input, type: typeof input }
+        }
+      })
+
+      // Should work with undefined input (no arguments passed)
+      const [result, error, record] = await task.safeRun()
+
+      expect(error).toBeNull()
+      expect(record.input).toEqual({}) // Should normalize undefined to {}
+      expect(result).toEqual({ received: {}, type: 'object' })
+    })
+
+    it('should validate empty schema tasks correctly', async () => {
+      const emptySchema = new Schema({})
+
+      const task = createTask({
+        name: 'validationTask',
+        schema: emptySchema,
+        boundaries: {},
+        fn: async (input) => ({ processed: true, input })
+      })
+
+      // Empty schema should validate successfully
+      expect(task.isValid()).toBe(true)
+      expect(task.isValid(undefined)).toBe(true)
+      expect(task.isValid({})).toBe(true)
+    })
+
+    it('should support replay with normalized empty schema records', async () => {
+      const emptySchema = new Schema({})
+
+      const task = createTask({
+        name: 'replayTask',
+        schema: emptySchema,
+        boundaries: {
+          getData: async () => 'test-data'
+        },
+        fn: async (input, { getData }) => {
+          const data = await getData()
+          return { data, inputReceived: input }
+        }
+      })
+
+      // Create a record with undefined input (should normalize to {})
+      const [originalResult, originalError, originalRecord] = await task.safeRun()
+
+      expect(originalError).toBeNull()
+      expect(originalResult).toEqual({
+        data: 'test-data',
+        inputReceived: {}
+      })
+      expect(originalRecord.input).toEqual({})
+
+      // Replay should work with the normalized input
+      const [replayResult, replayError, replayRecord] = await task.safeReplay(
+        originalRecord,
+        { boundaries: { getData: 'replay' } }
+      )
+
+      expect(replayError).toBeNull()
+      expect(replayResult).toEqual(originalResult)
+      expect(replayRecord.input).toEqual(originalRecord.input)
+    })
+
+    it('should create consistent execution records for different input types', async () => {
+      const emptySchema = new Schema({})
+
+      const task = createTask({
+        name: 'consistencyTask',
+        schema: emptySchema,
+        boundaries: {},
+        fn: async (input) => ({ inputReceived: input, type: typeof input })
+      })
+
+      // Test different input scenarios - all should normalize to {} for empty schema
+      const scenarios = [
+        { name: 'undefined', input: undefined, expectedInput: {} },
+        { name: 'empty object', input: {}, expectedInput: {} }
+      ]
+
+      for (const scenario of scenarios) {
+        const [result, error, record] = await task.safeRun(scenario.input as undefined | Record<string, never>)
+
+        expect(error).toBeNull()
+        expect(record).toHaveProperty('input')
+        expect(record).toHaveProperty('output')
+        expect(record).toHaveProperty('type')
+        expect(record).toHaveProperty('boundaries')
+        expect(record.type).toBe('success')
+        expect(record.input).toEqual(scenario.expectedInput)
+        expect(result).toEqual({ inputReceived: scenario.expectedInput, type: 'object' })
+      }
+    })
+  })
 })
