@@ -2,18 +2,22 @@
 // Run this task with:
 // forge task:run docs:download
 // forge task:run docs:download --path="custom/path/forge.md"
+// forge task:run docs:download --logs
+// forge task:run docs:download --logs --path="custom/path/forge.md"
 
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
 import path from 'path'
 
 const name = 'docs:download'
-const description = 'Download the ForgeHive LLM guide from GitHub to local project'
+const description = 'Download ForgeHive LLM guides from GitHub to local project'
 
 const LLM_GUIDE_URL = 'https://raw.githubusercontent.com/forge-and-hive/forge-mono-repo/refs/heads/main/docs/llm.md'
+const LLM_HIVE_LOGGING_URL = 'https://raw.githubusercontent.com/forge-and-hive/forge-mono-repo/refs/heads/main/docs/llm-hive-logging.md'
 
 const schema = new Schema({
-  path: Schema.string().optional()
+  path: Schema.string().optional(),
+  logs: Schema.boolean().optional()
 })
 
 const boundaries = {
@@ -51,37 +55,80 @@ export const download = createTask({
   description,
   schema,
   boundaries,
-  fn: async function ({ path: customPath }, { fetchFile, getCurrentWorkingDirectory, createDirectory, writeFile, checkFileExists }) {
-    // Determine the target path
-    const targetPath = customPath || 'docs/forge.md'
+  fn: async function ({ path: customPath, logs }, { fetchFile, getCurrentWorkingDirectory, createDirectory, writeFile, checkFileExists }) {
     const cwd = await getCurrentWorkingDirectory()
-    const fullPath = path.resolve(cwd, targetPath)
-    const dirPath = path.dirname(fullPath)
+    const results = []
 
-    console.log(`Downloading ForgeHive LLM guide to: ${targetPath}`)
+    // Download main LLM guide
+    const mainTargetPath = customPath || 'docs/forge.md'
+    const mainFullPath = path.resolve(cwd, mainTargetPath)
+    const mainDirPath = path.dirname(mainFullPath)
+
+    console.log(`Downloading ForgeHive LLM guide to: ${mainTargetPath}`)
 
     // Check if file already exists
-    const fileExists = await checkFileExists(fullPath)
-    if (fileExists) {
-      console.log(`Warning: File already exists at ${targetPath}. It will be overwritten.`)
+    const mainFileExists = await checkFileExists(mainFullPath)
+    if (mainFileExists) {
+      console.log(`Warning: File already exists at ${mainTargetPath}. It will be overwritten.`)
     }
 
-    // Download the file content
-    const content = await fetchFile(LLM_GUIDE_URL)
+    // Download the main guide content
+    const mainContent = await fetchFile(LLM_GUIDE_URL)
 
     // Create directory if it doesn't exist
-    await createDirectory(dirPath)
+    await createDirectory(mainDirPath)
 
-    // Write the file
-    await writeFile(fullPath, content)
+    // Write the main guide file
+    await writeFile(mainFullPath, mainContent)
 
-    console.log(`✅ Successfully downloaded ForgeHive LLM guide to ${targetPath}`)
+    console.log(`✅ Successfully downloaded ForgeHive LLM guide to ${mainTargetPath}`)
+
+    results.push({
+      type: 'main',
+      filePath: mainFullPath,
+      targetPath: mainTargetPath,
+      size: mainContent.length
+    })
+
+    // Download Hive logging guide if --logs flag is provided
+    if (logs) {
+      const logsTargetPath = customPath
+        ? path.join(path.dirname(customPath), 'hive-logging.md')
+        : 'docs/hive-logging.md'
+      const logsFullPath = path.resolve(cwd, logsTargetPath)
+      const logsDirPath = path.dirname(logsFullPath)
+
+      console.log(`Downloading Hive Logging guide to: ${logsTargetPath}`)
+
+      // Check if logs file already exists
+      const logsFileExists = await checkFileExists(logsFullPath)
+      if (logsFileExists) {
+        console.log(`Warning: File already exists at ${logsTargetPath}. It will be overwritten.`)
+      }
+
+      // Download the logs guide content
+      const logsContent = await fetchFile(LLM_HIVE_LOGGING_URL)
+
+      // Create directory if it doesn't exist
+      await createDirectory(logsDirPath)
+
+      // Write the logs guide file
+      await writeFile(logsFullPath, logsContent)
+
+      console.log(`✅ Successfully downloaded Hive Logging guide to ${logsTargetPath}`)
+
+      results.push({
+        type: 'logs',
+        filePath: logsFullPath,
+        targetPath: logsTargetPath,
+        size: logsContent.length
+      })
+    }
 
     return {
       success: true,
-      filePath: fullPath,
-      targetPath,
-      size: content.length
+      downloads: results,
+      totalFiles: results.length
     }
   }
 })
