@@ -184,10 +184,11 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
         profileName: String(action)
       })
     } else if (taskName === 'docs:download') {
-      const { path } = args as { path?: string }
+      const { path, logs } = args as { path?: string, logs?: boolean }
 
       result = await task.run({
-        path
+        path,
+        logs
       })
     } else if (taskName === 'project:create') {
       const { projectName, description } = args as { projectName?: string, description?: string }
