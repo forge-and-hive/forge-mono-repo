@@ -39,8 +39,13 @@ const boundaries = {
   readFileBinary: async (filePath: string): Promise<Buffer> => {
     return fs.readFile(filePath)
   },
-  publishTask: async (data: Record<string, unknown>, profile: Profile): Promise<{ bundleUploadUrl?: string }> => {
-    const publishUrl = `${profile.url}/api/tasks/publish`
+  publishTask: async (
+    projectUuid: string,
+    taskUuid: string,
+    data: Record<string, unknown>,
+    profile: Profile
+  ): Promise<{ bundleUploadUrl?: string }> => {
+    const publishUrl = `${profile.url}/api/projects/${projectUuid}/tasks/${taskUuid}/publish`
     const authToken = `${profile.apiKey}:${profile.apiSecret}`
 
     try {
@@ -110,6 +115,15 @@ export const publish = createTask({
 
     if (taskDescriptor === undefined) {
       throw new Error('Task is not defined on forge.json')
+    }
+
+    // Check for required UUIDs
+    if (!forgeJson.project.uuid) {
+      throw new Error('Project UUID is not defined in forge.json. Please ensure your project has a UUID.')
+    }
+
+    if (!taskDescriptor.uuid) {
+      throw new Error(`Task "${descriptorName}" does not have a UUID in forge.json. Please ensure your task has a UUID.`)
     }
 
     const entryPoint = path.join(cwd, taskDescriptor.path)
@@ -190,7 +204,7 @@ export const publish = createTask({
 
     // Publish metadata to hive api server
     console.log(`Publishing metadata and source code to ${profile.url}...`)
-    const publishResponse = await publishTask(data, profile)
+    const publishResponse = await publishTask(forgeJson.project.uuid, taskDescriptor.uuid, data, profile)
 
     // Upload zipped bundle using the presigned URL
     if (publishResponse.bundleUploadUrl) {

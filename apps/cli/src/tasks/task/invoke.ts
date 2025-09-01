@@ -30,6 +30,7 @@ const boundaries = {
   },
   invokeTask: async (
     projectUuid: string,
+    taskUuid: string,
     profile: Profile,
     taskName: string,
     payload: unknown
@@ -41,11 +42,11 @@ const boundaries = {
       host: profile.url
     })
 
-    console.log(`Invoking task: ${taskName}`)
+    console.log(`Invoking task: ${taskName} (${taskUuid})`)
     console.log('Payload:', payload)
     console.log(`Using profile: ${profile.name} (${profile.url})`)
 
-    return await client.invoke(taskName, payload)
+    return await client.invoke(taskUuid, payload)
   }
 }
 
@@ -63,9 +64,13 @@ export const invoke = createTask({
       throw new Error(`Task "${descriptorName}" is not defined in forge.json`)
     }
 
-    // Check for project UUID
+    // Check for required UUIDs
     if (!forge.project.uuid) {
       throw new Error('Project UUID is not defined in forge.json. Please ensure your project has a UUID.')
+    }
+
+    if (!taskDescriptor.uuid) {
+      throw new Error(`Task "${descriptorName}" does not have a UUID in forge.json. Please ensure your task has a UUID.`)
     }
 
     // Load profile (required for invoke)
@@ -80,7 +85,7 @@ export const invoke = createTask({
     const payload = await parseJSON(json)
 
     // Invoke the task using the boundary
-    const result = await invokeTask(forge.project.uuid, profile, descriptorName, payload)
+    const result = await invokeTask(forge.project.uuid, taskDescriptor.uuid, profile, descriptorName, payload)
 
     if (isInvokeError(result)) {
       throw new Error(`Task invocation failed: ${result.error}`)
