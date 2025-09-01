@@ -196,7 +196,7 @@ export class HiveLogClient {
             if (this.forgeConfig && this.forgeConfig.tasks) {
               const localTasks = Object.keys(this.forgeConfig.tasks)
               const remoteTasks = projectResponse.data.project?.tasks || []
-              const remoteTaskUuids = new Set(remoteTasks.map((task: any) => task.uuid))
+              const remoteTaskUuids = new Set(remoteTasks.map((task: { uuid: string }) => task.uuid))
 
               const missing: string[] = []
               let found = 0
@@ -461,7 +461,7 @@ export class HiveLogClient {
     return task.uuid
   }
 
-  async sendLogByName(record: ExecutionRecord, taskName: string, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess> {
+  async sendLogByName(taskName: string, record: ExecutionRecord, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess> {
     if (!this.isInitialized) {
       log('Silent mode: Skipping sendLogByName for task "%s" - client not initialized', taskName)
       return 'silent'
@@ -479,8 +479,7 @@ export class HiveLogClient {
     }
 
     // Use the existing sendLogByUuid method
-    console.log('[sendLogByName]Sending log for task "%s" with uuid "%s"', taskName, taskUuid)
-    console.log('[sendLogByName]Sending log for project uuid "%s"', this.projectUuid)
+    log('Sending log for task "%s" with uuid "%s"', taskName, taskUuid)
     return await this.sendLogByUuid(record, taskUuid, metadata)
   }
 }

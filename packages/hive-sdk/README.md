@@ -2,15 +2,36 @@
 
 A TypeScript/JavaScript SDK for interacting with the Forge Hive logging and quality assessment platform.
 
+## ⚠️ Deprecation Notices
+
+- **`sendLog()` method**: Deprecated. Use `sendLogByName()` or `sendLogByUuid()` instead.
+- **`projectName`-only configuration**: Deprecated. Use `createClientFromForgeConf()` or include `projectUuid` in your configuration.
+
+Future versions will require `projectUuid` and remove support for the legacy `sendLog()` method and name-based project identification.
+
 ## Quick Start
 
-Create a client with:
+Create a client from forge.json (recommended):
+```typescript
+import { createClientFromForgeConf } from '@forgehive/hive-sdk'
+
+// Create client from forge.json (recommended)
+const client = createClientFromForgeConf('./forge.json', {
+  metadata: {
+    environment: 'production',
+    version: '1.0.0'
+  }
+})
+```
+
+Or create with explicit configuration:
 ```typescript
 import { HiveLogClient } from '@forgehive/hive-sdk'
 
-// Create client with explicit configuration (recommended)
+// Create client with explicit configuration
 const client = new HiveLogClient({
   projectName: 'My Project',
+  projectUuid: 'your-project-uuid',
   apiKey: 'your_api_key',
   apiSecret: 'your_api_secret'
 })
@@ -22,8 +43,8 @@ On your app
 // Run a task
 const [res, error, record] = await someTask.safeRun(args)
 
-// Send a log
-await client.sendLog('task-name', record)
+// Send a log using task name (recommended)
+await client.sendLogByName('stock:getPrice', record)
 ```
 
 ## Installation
@@ -149,17 +170,61 @@ const clientWithConfig = new HiveLogClient(config)
 ```
 
 **Configuration Object:**
-- `projectName`: Name of your project (required)
+- `projectName`: Name of your project (required, ⚠️ deprecated - use `createClientFromForgeConf` instead)
+- `projectUuid`: UUID of your project (recommended for new implementations)
 - `apiKey`: API key (optional, falls back to `HIVE_API_KEY` environment variable)
 - `apiSecret`: API secret (optional, falls back to `HIVE_API_SECRET` environment variable)
 - `host`: Hive instance URL (optional, falls back to `HIVE_HOST` environment variable, then defaults to `https://www.forgehive.cloud`)
 - `metadata`: Base metadata that will be included with every log (optional)
+- `forgeConfigPath`: Path to forge.json file (optional, defaults to './forge.json')
 
 **Returns:** `HiveLogClient` - Configured client instance
 
+### `createClientFromForgeConf(forgeConfigPath?: string, additionalConfig?: Partial<HiveLogClientConfig>): HiveLogClient` (Recommended)
+
+Creates a Hive log client automatically configured from your forge.json file. This is the recommended way to create clients as it automatically loads project name, UUID, and task configurations.
+
+```typescript
+import { createClientFromForgeConf } from '@forgehive/hive-sdk'
+
+// Use default forge.json path (./forge.json)
+const client = createClientFromForgeConf()
+
+// Use custom forge.json path
+const client = createClientFromForgeConf('./config/forge.json')
+
+// Use default path with additional config
+const client = createClientFromForgeConf(undefined, {
+  metadata: {
+    environment: 'production',
+    version: '1.0.0'
+  }
+})
+
+// Use custom path with additional config
+const client = createClientFromForgeConf('./forge.json', {
+  apiKey: 'override-key', // Override any forge.json values
+  metadata: {
+    environment: 'production'
+  }
+})
+```
+
+**Parameters:**
+- `forgeConfigPath` (optional): Path to forge.json file (defaults to './forge.json')
+- `additionalConfig` (optional): Additional config to override forge.json values
+
+**Returns:** `HiveLogClient` - Configured client with project name, UUID, and task mappings from forge.json
+
+**Benefits:**
+- Automatically loads project name and UUID from forge.json
+- Enables `sendLogByName()` method for easy task logging
+- Supports task verification with `testConfig()`
+- Reduces configuration boilerplate
+
 ### `createHiveLogClient(config: HiveLogClientConfig): HiveLogClient`
 
-Factory function that creates a new Hive log client instance.
+Factory function that creates a new Hive log client instance with explicit configuration.
 
 ```typescript
 import { createHiveLogClient } from '@forgehive/hive-sdk'
@@ -177,6 +242,61 @@ const client = createHiveLogClient({
 
 **Parameters:** Same as `HiveLogClient` constructor
 **Returns:** `HiveLogClient` - Configured client instance
+
+### `sendLog(record: ExecutionRecord, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess>` ⚠️ DEPRECATED
+
+> **⚠️ DEPRECATION WARNING**: `sendLog()` is deprecated and will be removed in a future version. Use `sendLogByName()` or `sendLogByUuid()` instead for better performance and enhanced features.
+
+Sends a log entry to Hive using the legacy endpoint. This method still works but lacks the enhanced features of the newer UUID-based endpoints.
+
+```typescript
+// DEPRECATED - Use sendLogByName() instead
+const status = await client.sendLog(record, metadata)
+
+// RECOMMENDED - Use sendLogByName() for automatic UUID lookup
+const status = await client.sendLogByName('stock:getPrice', record, metadata)
+```
+
+### `sendLogByName(taskName: string, record: ExecutionRecord, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess>` (Recommended)
+
+Sends a log entry to Hive using task name for automatic UUID lookup. Requires `projectUuid` to be set and forge.json to be loaded.
+
+```typescript
+// Run a task and send log by name
+const [result, error, record] = await myTask.safeRun(args)
+const status = await client.sendLogByName('stock:getPrice', record, {
+  environment: 'production',
+  requestId: 'req-123'
+})
+```
+
+### `sendLogByUuid(record: ExecutionRecord, taskUuid: string, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess>`
+
+Sends a log entry to Hive using explicit task UUID. Requires `projectUuid` to be set in client config.
+
+```typescript
+const status = await client.sendLogByUuid(record, 'a45aafe3-8b01-4b58-b15d-9a96274858ee', metadata)
+```
+
+### `testConfig(): Promise<TestConfigResult>`
+
+Tests the client configuration by verifying credentials, project access, and task synchronization.
+
+```typescript
+const result = await client.testConfig()
+console.log('Config test:', result)
+// Returns: { success, teamName, userName, projectName, projectExists, tasksVerified, error? }
+```
+
+### `getConf(): Record<string, unknown>`
+
+Returns the client configuration with masked secrets (shows first 4 + last 4 characters).
+
+```typescript
+const config = client.getConf()
+console.log('Client config:', config)
+// Returns: { projectName, projectUuid, host, apiKey: 'abcd****wxyz', ... }
+```
 
 ### `isActive(): boolean`
 
@@ -206,7 +326,7 @@ Sends a log entry to Hive for a specific task with optional metadata. Accepts bo
 
 ```typescript
 // Using a manual log item
-const status = await hiveLogger.sendLog('user-authentication', {
+const status = await hiveLogger.sendLogByName('user-authentication', {
   input: { username: 'john_doe', timestamp: Date.now() },
   output: { success: true, userId: 12345 },
   boundaries: {
@@ -226,7 +346,7 @@ const status = await hiveLogger.sendLog('user-authentication', {
 
 // Using a task execution record directly
 const [result, error, record] = await someTask.safeRun(args)
-await hiveLogger.sendLog('task-name', record, {
+await hiveLogger.sendLogByName('task-name', record, {
   environment: 'production'
 })
 
@@ -320,7 +440,7 @@ The Hive SDK supports a flexible metadata system that allows you to attach conte
 
 Metadata is merged using the following priority order (highest to lowest):
 
-1. **sendLog metadata** - Metadata passed directly to the `sendLog` method
+1. **sendLogByName metadata** - Metadata passed directly to the `sendLogByName` method
 2. **logItem metadata** - Metadata already present in the `logItem` object
 3. **Client base metadata** - Metadata set when creating the client
 
@@ -348,7 +468,7 @@ const logItem = {
 }
 
 // Send log with additional metadata
-await client.sendLog('task-name', logItem, {
+await client.sendLogByName('task-name', logItem, {
   requestId: 'req-456',
   version: '1.2.0'  // This overrides both logItem and client version
 })
@@ -358,8 +478,8 @@ await client.sendLog('task-name', logItem, {
 //   environment: 'production',  // from client
 //   team: 'backend',            // from client
 //   sessionId: 'session-123',   // from logItem
-//   version: '1.2.0',           // from sendLog (highest priority)
-//   requestId: 'req-456'        // from sendLog
+//   version: '1.2.0',           // from sendLogByName (highest priority)
+//   requestId: 'req-456'        // from sendLogByName
 // }
 ```
 
@@ -382,7 +502,7 @@ const client = new HiveLogClient({
 **Request-specific metadata:**
 ```typescript
 app.post('/api/users', async (req, res) => {
-  const result = await client.sendLog('create-user', {
+  const result = await client.sendLogByName('create-user', {
     input: req.body,
     output: newUser
   }, {
@@ -405,7 +525,7 @@ const logItem = {
   }
 }
 
-await client.sendLog('search', logItem)
+await client.sendLogByName('search', logItem)
 ```
 
 ## Types
@@ -414,12 +534,31 @@ await client.sendLog('search', logItem)
 
 ```typescript
 interface HiveLogClientConfig {
-  projectName: string
+  projectName: string        // ⚠️ DEPRECATED - use createClientFromForgeConf() instead
+  projectUuid?: string       // Recommended for new implementations
   apiKey?: string
   apiSecret?: string
   host?: string
   metadata?: Metadata
+  forgeConfigPath?: string   // Path to forge.json file
 }
+```
+
+**⚠️ Migration Guide:**
+```typescript
+// OLD (deprecated) - projectName only
+const client = new HiveLogClient({
+  projectName: 'My Project'
+})
+
+// NEW (recommended) - use createClientFromForgeConf
+const client = createClientFromForgeConf('./forge.json')
+
+// NEW (alternative) - explicit projectUuid
+const client = new HiveLogClient({
+  projectName: 'My Project',
+  projectUuid: 'your-project-uuid'
+})
 ```
 
 ### `LogItemInput` (also exported as `LogItem`)
@@ -552,7 +691,7 @@ const hiveLogger = new HiveLogClient({
   // No credentials provided - will use environment variables or go silent
 })
 
-const status = await hiveLogger.sendLog('task-name', { data: 'example' })
+const status = await hiveLogger.sendLogByName('task-name', { data: 'example' })
 if (status === 'error') {
   console.error('Network or API error')
 } else if (status === 'silent') {
@@ -578,9 +717,9 @@ if (hiveLogger.isActive()) {
 }
 ```
 
-**sendLog** - Returns status strings (never throws):
+**sendLogByName** - Returns status strings (never throws):
 ```typescript
-const status = await hiveLogger.sendLog('task', { data: 'test' })
+const status = await hiveLogger.sendLogByName('task', { data: 'test' })
 // Returns: 'success', 'error', or 'silent'
 ```
 
@@ -636,7 +775,7 @@ async function main() {
   }
 
   // Send log with additional high-priority metadata
-  const status = await hiveLogger.sendLog('document-search', logData, {
+  const status = await hiveLogger.sendLogByName('document-search', logData, {
     requestId: 'req-123456',
     userId: 'user-789',
     sessionId: 'sess-abc123'

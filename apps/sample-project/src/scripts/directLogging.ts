@@ -32,7 +32,7 @@ async function main(): Promise<void> {
 
     // Manually log this specific execution using sendLogByName
     if (record) {
-      const logResult = await client.sendLogByName(record, name, {
+      const logResult = await client.sendLogByName(name, record, {
         environment: 'main',
         method: 'direct',
         manual: 'true'
