@@ -1,9 +1,24 @@
 import axios from 'axios'
 import debug from 'debug'
 import { v7 as uuidv7 } from 'uuid'
+import fs from 'fs'
 import type { ExecutionRecord } from '@forgehive/task'
 
 const log = debug('hive-sdk')
+
+interface ForgeConfig {
+  project: {
+    name: string
+    uuid: string
+  }
+  tasks: {
+    [taskName: string]: {
+      path: string
+      handler: string
+      uuid: string
+    }
+  }
+}
 
 // Metadata interface
 export interface Metadata {
@@ -21,6 +36,7 @@ export interface HiveLogClientConfig {
   apiSecret?: string
   host?: string
   metadata?: Metadata
+  forgeConfigPath?: string // Optional path to forge.json file
 }
 
 // API Response Types
@@ -61,6 +77,7 @@ export class HiveLogClient {
   private projectUuid: string | null
   private baseMetadata: Metadata
   private isInitialized: boolean
+  private forgeConfig: ForgeConfig | null = null
 
   constructor(config: HiveLogClientConfig) {
     const apiKey = config.apiKey || process.env.HIVE_API_KEY
@@ -84,10 +101,143 @@ export class HiveLogClient {
       this.isInitialized = true
       log('HiveLogClient initialized for project "%s" with host "%s"', config.projectName, host)
     }
+
+    // Load forge.json - use provided path or default to ./forge.json
+    const configPath = config.forgeConfigPath || './forge.json'
+    this.loadForgeConfig(configPath)
   }
 
   isActive(): boolean {
     return this.isInitialized
+  }
+
+  private maskSecret(secret: string | null): string {
+    if (!secret || secret.length <= 8) {
+      return secret ? '****' : 'null'
+    }
+    const first4 = secret.slice(0, 4)
+    const last4 = secret.slice(-4)
+    const middle = '*'.repeat(secret.length - 8)
+    return `${first4}${middle}${last4}`
+  }
+
+  getConf(): Record<string, unknown> {
+    return {
+      projectName: this.projectName,
+      projectUuid: this.projectUuid,
+      host: this.host,
+      apiKey: this.maskSecret(this.apiKey),
+      apiSecret: this.maskSecret(this.apiSecret),
+      isInitialized: this.isInitialized,
+      baseMetadata: this.baseMetadata,
+      forgeConfig: this.forgeConfig
+    }
+  }
+
+  async testConfig(): Promise<{
+    success: boolean
+    teamName?: string
+    teamUuid?: string
+    userName?: string
+    projectName?: string
+    projectExists?: boolean
+    tasksVerified?: {
+      total: number
+      found: number
+      missing: string[]
+    }
+    error?: string
+  }> {
+    if (!this.isInitialized) {
+      return {
+        success: false,
+        error: 'Client not initialized - missing API credentials'
+      }
+    }
+
+    try {
+      // First verify credentials with /api/me
+      const meResponse = await axios.get(`${this.host}/api/me`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}:${this.apiSecret}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (meResponse.status !== 200) {
+        const error = `Credential verification failed: HTTP ${meResponse.status}`
+        log('Failed to verify credentials: %s', error)
+        return { success: false, error }
+      }
+
+      const meData = meResponse.data
+      log('Successfully verified credentials for user "%s" in team "%s"', meData.user?.name, meData.team?.name)
+
+      // Then verify project exists if we have a projectUuid
+      let projectExists = false
+      let projectName: string | undefined
+      let tasksVerified: { total: number; found: number; missing: string[] } | undefined
+
+      if (this.projectUuid) {
+        try {
+          const projectResponse = await axios.get(`${this.host}/api/projects/${this.projectUuid}`, {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}:${this.apiSecret}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (projectResponse.status === 200) {
+            projectExists = true
+            projectName = projectResponse.data.project?.projectName
+            log('Successfully verified project "%s" exists with UUID "%s"', projectName, this.projectUuid)
+
+            // Verify tasks if we have forge config
+            if (this.forgeConfig && this.forgeConfig.tasks) {
+              const localTasks = Object.keys(this.forgeConfig.tasks)
+              const remoteTasks = projectResponse.data.project?.tasks || []
+              const remoteTaskUuids = new Set(remoteTasks.map((task: any) => task.uuid))
+
+              const missing: string[] = []
+              let found = 0
+
+              for (const taskName of localTasks) {
+                const taskUuid = this.forgeConfig.tasks[taskName].uuid
+                if (remoteTaskUuids.has(taskUuid)) {
+                  found++
+                } else {
+                  missing.push(taskName)
+                }
+              }
+
+              tasksVerified = {
+                total: localTasks.length,
+                found,
+                missing
+              }
+
+              log('Task verification: %d/%d tasks found, missing: %s', found, localTasks.length, missing.join(', '))
+            }
+          }
+        } catch (projectError) {
+          log('Project verification failed for UUID "%s": %s', this.projectUuid, projectError instanceof Error ? projectError.message : String(projectError))
+        }
+      }
+
+      return {
+        success: true,
+        teamName: meData.team?.name,
+        teamUuid: meData.team?.uuid,
+        userName: meData.user?.name,
+        projectName,
+        projectExists: this.projectUuid ? projectExists : undefined,
+        tasksVerified
+      }
+    } catch (e) {
+      const error = e instanceof Error ? e.message : 'Network error'
+      log('Error during config test: %s', error)
+      return { success: false, error }
+    }
   }
 
   private mergeMetadata(record: ExecutionRecord, sendLogMetadata?: Metadata): Metadata {
@@ -280,6 +430,59 @@ export class HiveLogClient {
       return false
     }
   }
+
+  private loadForgeConfig(configPath: string): void {
+    try {
+      if (fs.existsSync(configPath)) {
+        const configContent = fs.readFileSync(configPath, 'utf8')
+        this.forgeConfig = JSON.parse(configContent) as ForgeConfig
+        log('Found forge.json configuration at %s', configPath)
+      } else {
+        log('No forge.json configuration found at %s', configPath)
+      }
+    } catch (error) {
+      log('Error loading forge.json: %s', error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  private getTaskUUID(taskName: string): string | null {
+    if (!this.forgeConfig) {
+      log('No forge.json configuration loaded, cannot get UUID for task "%s"', taskName)
+      return null
+    }
+
+    const task = this.forgeConfig.tasks[taskName]
+    if (!task) {
+      log('Task "%s" not found in forge.json configuration', taskName)
+      return null
+    }
+
+    log('Found UUID "%s" for task "%s"', task.uuid, taskName)
+    return task.uuid
+  }
+
+  async sendLogByName(record: ExecutionRecord, taskName: string, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess> {
+    if (!this.isInitialized) {
+      log('Silent mode: Skipping sendLogByName for task "%s" - client not initialized', taskName)
+      return 'silent'
+    }
+
+    if (!this.projectUuid) {
+      log('Error: sendLogByName requires projectUuid to be set in client config')
+      return 'error'
+    }
+
+    const taskUuid = this.getTaskUUID(taskName)
+    if (!taskUuid) {
+      log('Error: Cannot find UUID for task "%s" in forge.json', taskName)
+      return 'error'
+    }
+
+    // Use the existing sendLogByUuid method
+    console.log('[sendLogByName]Sending log for task "%s" with uuid "%s"', taskName, taskUuid)
+    console.log('[sendLogByName]Sending log for project uuid "%s"', this.projectUuid)
+    return await this.sendLogByUuid(record, taskUuid, metadata)
+  }
 }
 
 export const createHiveLogClient = (config: HiveLogClientConfig): HiveLogClient => {
@@ -334,6 +537,93 @@ export class HiveClient {
     log('HiveClient initialized for project "%s" with host "%s"', config.projectUuid, host)
   }
 
+  private maskSecret(secret: string): string {
+    if (secret.length <= 8) {
+      return '****'
+    }
+    const first4 = secret.slice(0, 4)
+    const last4 = secret.slice(-4)
+    const middle = '*'.repeat(secret.length - 8)
+    return `${first4}${middle}${last4}`
+  }
+
+  getConf(): Record<string, unknown> {
+    return {
+      projectUuid: this.projectUuid,
+      host: this.host,
+      apiKey: this.maskSecret(this.apiKey),
+      apiSecret: this.maskSecret(this.apiSecret)
+    }
+  }
+
+  async testConfig(): Promise<{
+    success: boolean
+    teamName?: string
+    teamUuid?: string
+    userName?: string
+    projectName?: string
+    projectExists?: boolean
+    tasksVerified?: {
+      total: number
+      found: number
+      missing: string[]
+    }
+    error?: string
+  }> {
+    try {
+      // First verify credentials with /api/me
+      const meResponse = await axios.get(`${this.host}/api/me`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}:${this.apiSecret}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (meResponse.status !== 200) {
+        const error = `Credential verification failed: HTTP ${meResponse.status}`
+        log('Failed to verify credentials: %s', error)
+        return { success: false, error }
+      }
+
+      const meData = meResponse.data
+      log('Successfully verified credentials for user "%s" in team "%s"', meData.user?.name, meData.team?.name)
+
+      // Then verify project exists
+      let projectExists = false
+      let projectName: string | undefined
+
+      try {
+        const projectResponse = await axios.get(`${this.host}/api/projects/${this.projectUuid}`, {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}:${this.apiSecret}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (projectResponse.status === 200) {
+          projectExists = true
+          projectName = projectResponse.data.project?.projectName
+          log('Successfully verified project "%s" exists with UUID "%s"', projectName, this.projectUuid)
+        }
+      } catch (projectError) {
+        log('Project verification failed for UUID "%s": %s', this.projectUuid, projectError instanceof Error ? projectError.message : String(projectError))
+      }
+
+      return {
+        success: true,
+        teamName: meData.team?.name,
+        teamUuid: meData.team?.uuid,
+        userName: meData.user?.name,
+        projectName,
+        projectExists
+      }
+    } catch (e) {
+      const error = e instanceof Error ? e.message : 'Network error'
+      log('Error during config test: %s', error)
+      return { success: false, error }
+    }
+  }
+
   async invoke(taskName: string, payload: unknown): Promise<InvokeResult | null> {
     try {
       const invokeUrl = `${this.host}/api/project/${this.projectUuid}/task/${taskName}/invoke`
@@ -369,4 +659,42 @@ export class HiveClient {
 export const createHiveClient = (config: HiveClientConfig): HiveClient => {
   log('Creating HiveClient for project "%s"', config.projectUuid)
   return new HiveClient(config)
+}
+
+/**
+ * Create a HiveLogClient from forge.json configuration
+ * @param forgeConfigPath Path to forge.json file (defaults to './forge.json')
+ * @param additionalConfig Additional config options to override forge.json values
+ * @returns HiveLogClient configured from forge.json
+ */
+export const createClientFromForgeConf = (
+  forgeConfigPath: string = './forge.json',
+  additionalConfig: Partial<HiveLogClientConfig> = {}
+): HiveLogClient => {
+  log('Creating HiveLogClient from forge.json at "%s"', forgeConfigPath)
+
+  let forgeConfig: ForgeConfig | null = null
+
+  try {
+    if (fs.existsSync(forgeConfigPath)) {
+      const configContent = fs.readFileSync(forgeConfigPath, 'utf8')
+      forgeConfig = JSON.parse(configContent) as ForgeConfig
+      log('Loaded forge.json configuration from %s', forgeConfigPath)
+    } else {
+      log('No forge.json found at %s', forgeConfigPath)
+      throw new Error(`forge.json not found at ${forgeConfigPath}`)
+    }
+  } catch (error) {
+    log('Error loading forge.json: %s', error instanceof Error ? error.message : String(error))
+    throw error
+  }
+
+  const config: HiveLogClientConfig = {
+    projectName: forgeConfig.project.name,
+    projectUuid: forgeConfig.project.uuid,
+    forgeConfigPath,
+    ...additionalConfig // Allow overriding any config values
+  }
+
+  return new HiveLogClient(config)
 }
