@@ -623,10 +623,10 @@ export class HiveClient {
     }
   }
 
-  async invoke(taskName: string, payload: unknown): Promise<InvokeResult | null> {
+  async invoke(taskUuid: string, payload: unknown): Promise<InvokeResult | null> {
     try {
-      const invokeUrl = `${this.host}/api/project/${this.projectUuid}/task/${taskName}/invoke`
-      log('Invoking task "%s" at %s', taskName, invokeUrl)
+      const invokeUrl = `${this.host}/api/projects/${this.projectUuid}/tasks/${taskUuid}/invoke`
+      log('Invoking task UUID "%s" at %s', taskUuid, invokeUrl)
 
       const authToken = `${this.apiKey}:${this.apiSecret}`
 
@@ -639,11 +639,11 @@ export class HiveClient {
         }
       })
 
-      log('Success: Invoked task "%s"', taskName)
+      log('Success: Invoked task UUID "%s"', taskUuid)
       return response.data as InvokeResult
     } catch (e) {
       const error = e as Error
-      log('Error: Failed to invoke task "%s": %s', taskName, error.message)
+      log('Error: Failed to invoke task UUID "%s": %s', taskUuid, error.message)
 
       // Check if it's an axios error with response data
       if (axios.isAxiosError(error) && error.response?.data) {

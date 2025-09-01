@@ -4,8 +4,7 @@
 
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
-import { isInvokeError, type InvokeResult } from '@forgehive/hive-sdk'
-import axios from 'axios'
+import { createHiveClient, isInvokeError, type InvokeResult } from '@forgehive/hive-sdk'
 
 import { load as loadConf } from '../conf/load'
 import { loadCurrent as loadCurrentProfile } from '../auth/loadCurrent'
@@ -36,35 +35,18 @@ const boundaries = {
     taskName: string,
     payload: unknown
   ): Promise<InvokeResult | null> => {
-    const invokeUrl = `${profile.url}/api/projects/${projectUuid}/tasks/${taskUuid}/invoke`
-    const authToken = `${profile.apiKey}:${profile.apiSecret}`
+    const client = createHiveClient({
+      projectUuid,
+      apiKey: profile.apiKey,
+      apiSecret: profile.apiSecret,
+      host: profile.url
+    })
 
     console.log(`Invoking task: ${taskName} (${taskUuid})`)
     console.log('Payload:', payload)
     console.log(`Using profile: ${profile.name} (${profile.url})`)
 
-    try {
-      const response = await axios.post(invokeUrl, {
-        payload
-      }, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      return response.data
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { error?: string } } }
-        if (axiosError.response?.data?.error) {
-          return { error: axiosError.response.data.error }
-        }
-      }
-
-      const errorMessage = error instanceof Error ? error.message : 'Network error'
-      return { error: errorMessage }
-    }
+    return await client.invoke(taskUuid, payload)
   }
 }
 
