@@ -4,7 +4,8 @@
 
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
-import { createHiveClient, isInvokeError, type InvokeResult } from '@forgehive/hive-sdk'
+import { isInvokeError, type InvokeResult } from '@forgehive/hive-sdk'
+import axios from 'axios'
 
 import { load as loadConf } from '../conf/load'
 import { loadCurrent as loadCurrentProfile } from '../auth/loadCurrent'
@@ -30,22 +31,40 @@ const boundaries = {
   },
   invokeTask: async (
     projectUuid: string,
+    taskUuid: string,
     profile: Profile,
     taskName: string,
     payload: unknown
   ): Promise<InvokeResult | null> => {
-    const client = createHiveClient({
-      projectUuid,
-      apiKey: profile.apiKey,
-      apiSecret: profile.apiSecret,
-      host: profile.url
-    })
+    const invokeUrl = `${profile.url}/api/projects/${projectUuid}/tasks/${taskUuid}/invoke`
+    const authToken = `${profile.apiKey}:${profile.apiSecret}`
 
-    console.log(`Invoking task: ${taskName}`)
+    console.log(`Invoking task: ${taskName} (${taskUuid})`)
     console.log('Payload:', payload)
     console.log(`Using profile: ${profile.name} (${profile.url})`)
 
-    return await client.invoke(taskName, payload)
+    try {
+      const response = await axios.post(invokeUrl, {
+        payload
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      return response.data
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string } } }
+        if (axiosError.response?.data?.error) {
+          return { error: axiosError.response.data.error }
+        }
+      }
+
+      const errorMessage = error instanceof Error ? error.message : 'Network error'
+      return { error: errorMessage }
+    }
   }
 }
 
@@ -63,9 +82,13 @@ export const invoke = createTask({
       throw new Error(`Task "${descriptorName}" is not defined in forge.json`)
     }
 
-    // Check for project UUID
+    // Check for required UUIDs
     if (!forge.project.uuid) {
       throw new Error('Project UUID is not defined in forge.json. Please ensure your project has a UUID.')
+    }
+
+    if (!taskDescriptor.uuid) {
+      throw new Error(`Task "${descriptorName}" does not have a UUID in forge.json. Please ensure your task has a UUID.`)
     }
 
     // Load profile (required for invoke)
@@ -80,7 +103,7 @@ export const invoke = createTask({
     const payload = await parseJSON(json)
 
     // Invoke the task using the boundary
-    const result = await invokeTask(forge.project.uuid, profile, descriptorName, payload)
+    const result = await invokeTask(forge.project.uuid, taskDescriptor.uuid, profile, descriptorName, payload)
 
     if (isInvokeError(result)) {
       throw new Error(`Task invocation failed: ${result.error}`)
