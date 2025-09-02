@@ -1,6 +1,6 @@
 {
   "name": "@forgehive/task",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -19,7 +19,8 @@
     "lint:fix": "eslint src --ext .ts --fix"
   },
   "dependencies": {
-    "@forgehive/schema": "workspace:*"
+    "@forgehive/schema": "workspace:*",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

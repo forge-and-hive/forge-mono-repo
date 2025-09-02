@@ -139,11 +139,12 @@ export const publish = createTask({
 
     console.log('Bundle created...')
 
-    // Zip the bundle
+    // Zip the bundle with forge.json included
     await bundleZip({
       dir: buildsPath,
       input: `${descriptorName}.js`,
-      output: zipFile
+      output: zipFile,
+      forgeJsonPath: path.join(cwd, 'forge.json')
     })
 
     console.log('Bundle zipped...')

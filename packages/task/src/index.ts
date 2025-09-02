@@ -896,19 +896,58 @@ export const Task = class Task<
     const apiKey = process.env.HIVE_API_KEY
     const apiSecret = process.env.HIVE_API_SECRET
     const host = process.env.HIVE_HOST
-    const projectName = process.env.HIVE_PROJECT_NAME
-
 
     // If any required env vars are missing, do nothing
-    if (!apiKey || !apiSecret || !host || !projectName) {
+    if (!apiKey || !apiSecret || !host) {
       // eslint-disable-next-line no-console
-      console.log('Missing required env vars for sending log to Hive:', { apiKey, apiSecret, host, projectName })
+      console.log('Missing required env vars for sending log to Hive:', { apiKey: !!apiKey, apiSecret: !!apiSecret, host })
       return
     }
 
-    // eslint-disable-next-line no-console
-    console.log('Sending log to Hive:', log)
+    // Load forge.json for UUID-based logging
+    let projectUuid: string | null = null
+    let taskUuid: string | null = null
 
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const fs = require('fs')
+      const forgeJsonContent = fs.readFileSync('./forge.json', 'utf8')
+      const forgeConfig = JSON.parse(forgeJsonContent)
+
+      projectUuid = forgeConfig.project?.uuid
+
+      // Find task UUID by matching task name
+      const taskName = this._name || process.env.HIVE_TASK_NAME || 'unnamed-task'
+      if (forgeConfig.tasks && forgeConfig.tasks[taskName]) {
+        taskUuid = forgeConfig.tasks[taskName].uuid
+      }
+
+      // eslint-disable-next-line no-console
+      console.log('Loaded forge.json for logging:', { projectUuid: !!projectUuid, taskUuid: !!taskUuid, taskName })
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.log('Could not load forge.json, skipping log send:', error instanceof Error ? error.message : 'Unknown error')
+      return
+    }
+
+    // Require both UUIDs for logging
+    if (!projectUuid || !taskUuid) {
+      // eslint-disable-next-line no-console
+      console.log('Missing project or task UUID, skipping log send')
+      return
+    }
+
+    await this._sendToHiveWithUuid(log, projectUuid, taskUuid, apiKey, apiSecret, host)
+  }
+
+  async _sendToHiveWithUuid(
+    log: ExecutionRecord<Parameters<Func>[0], ReturnType<Func>, B>,
+    projectUuid: string,
+    taskUuid: string,
+    apiKey: string,
+    apiSecret: string,
+    host: string
+  ): Promise<void> {
     return new Promise<void>((resolve) => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -917,17 +956,23 @@ export const Task = class Task<
         const http = require('http')
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const url = require('url')
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { v7: uuidv7 } = require('uuid')
 
-        const logsUrl = `${host}/api/tasks/log-ingest`
-        // eslint-disable-next-line no-console
-        console.log('logsUrl', logsUrl)
+        const logsUrl = `${host}/api/log-ingest`
         const parsedUrl = url.parse(logsUrl)
         const authToken = `${apiKey}:${apiSecret}`
 
+        // Ensure log has UUID for the new endpoint
+        const logWithUuid = {
+          ...log,
+          uuid: log.uuid || uuidv7()
+        }
+
         const postData = JSON.stringify({
-          projectName,
-          taskName: process.env.HIVE_TASK_NAME || this._fn.name || 'unnamed-task',
-          logItem: JSON.stringify(log)
+          projectUuid,
+          taskUuid,
+          logItem: JSON.stringify(logWithUuid)
         })
 
         const options = {
@@ -947,12 +992,9 @@ export const Task = class Task<
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const req = client.request(options, (res: any) => {
           // eslint-disable-next-line no-console
-          console.log('Hive API response status:', res.statusCode)
-          // eslint-disable-next-line no-console
-          console.log('Hive API response headers:', res.headers)
+          console.log('Hive UUID API response status:', res.statusCode)
 
           let responseData = ''
-
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           res.on('data', (chunk: any) => {
             responseData += chunk
@@ -960,33 +1002,34 @@ export const Task = class Task<
 
           res.on('end', () => {
             // eslint-disable-next-line no-console
-            console.log('Hive API response body:', responseData)
+            console.log('Hive UUID API response body:', responseData)
             if (res.statusCode >= 200 && res.statusCode < 300) {
               // eslint-disable-next-line no-console
-              console.log('Successfully sent log to Hive')
+              console.log('Successfully sent log to Hive using UUID endpoint')
             } else {
               // eslint-disable-next-line no-console
-              console.error('Hive API error - Status:', res.statusCode, 'Body:', responseData)
+              console.error('Hive UUID API error - Status:', res.statusCode, 'Body:', responseData)
             }
-            resolve() // Resolve the promise when request completes
+            resolve()
           })
         })
 
         req.on('error', (error: Error) => {
           // eslint-disable-next-line no-console
-          console.error('Failed to send log to Hive - Request error:', error.message)
-          resolve() // Resolve even on error to not block the handler
+          console.error('Failed to send log to Hive UUID endpoint - Request error:', error.message)
+          resolve()
         })
 
         req.write(postData)
         req.end()
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error('Failed to send log to Hive:', error instanceof Error ? error.message : 'Unknown error')
-        resolve() // Resolve even on error to not block the handler
+        console.error('Failed to send log to Hive UUID endpoint:', error instanceof Error ? error.message : 'Unknown error')
+        resolve()
       }
     })
   }
+
 }
 
 /**
