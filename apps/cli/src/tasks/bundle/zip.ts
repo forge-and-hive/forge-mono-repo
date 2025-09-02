@@ -13,7 +13,8 @@ const description = 'Zip a bundle file for distribution'
 const schema = new Schema({
   dir: Schema.string(),
   input: Schema.string(),
-  output: Schema.string()
+  output: Schema.string(),
+  forgeJsonPath: Schema.string().optional() // Optional path to forge.json - if provided, it will be included
 })
 
 const boundaries = {
@@ -33,7 +34,7 @@ const boundaries = {
     } catch {
       return false
     }
-  }
+  },
 }
 
 export const bytesToMB = (bytes: number): string => {
@@ -44,7 +45,7 @@ export const bytesToMB = (bytes: number): string => {
 export const zip = createTask({
   schema,
   boundaries,
-  fn: async function ({ dir, input, output }, { createWriteStream, createArchiver, resolvePathDir, fileExists }) {
+  fn: async function ({ dir, input, output, forgeJsonPath }, { createWriteStream, createArchiver, resolvePathDir, fileExists }) {
     const outputPath = await resolvePathDir(dir, output)
     const inputPath = await resolvePathDir(dir, input)
     const inputMapPath = inputPath + '.map'
@@ -57,6 +58,17 @@ export const zip = createTask({
 
     // Check if source map exists before creating Promise
     const mapExists = await fileExists(inputMapPath)
+
+    // Handle forge.json inclusion - only if path is provided
+    let finalForgeJsonPath: string | null = null
+    if (forgeJsonPath) {
+      const exists = await fileExists(forgeJsonPath)
+      if (exists) {
+        finalForgeJsonPath = forgeJsonPath
+      } else {
+        console.warn(`forge.json not found at provided path: ${forgeJsonPath}`)
+      }
+    }
 
     // Handle async operations outside of Promise constructor
     const outStream = await createWriteStream(outputPath)
@@ -99,6 +111,12 @@ export const zip = createTask({
       // Add source map if it exists
       if (mapExists) {
         archive.file(inputMapPath, { name: 'index.js.map' })
+      }
+
+      // Add forge.json if path was provided and found
+      if (finalForgeJsonPath) {
+        archive.file(finalForgeJsonPath, { name: 'forge.json' })
+        console.log(`Added forge.json from: ${finalForgeJsonPath}`)
       }
 
       archive.finalize()
