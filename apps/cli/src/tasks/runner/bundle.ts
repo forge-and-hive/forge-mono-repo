@@ -59,6 +59,9 @@ export const bundle = createTask({
     // Ensure target directory exists
     await ensureDir(path.dirname(targetPath))
 
+    // Get external packages from config, default to empty array
+    const externalPackages = forge.build?.externalPackages ?? []
+
     // Build using esbuild
     await esbuild.build({
       entryPoints: [entryPoint],
@@ -66,7 +69,8 @@ export const bundle = createTask({
       bundle: true,
       minify: true,
       platform: 'node',
-      sourcemap: true
+      sourcemap: true,
+      external: externalPackages
     })
 
     return {
