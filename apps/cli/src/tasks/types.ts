@@ -34,6 +34,9 @@ export interface ForgeConf {
   infra: Infra
   tasks: Record<string, TaskDescriptor>
   runners: Record<string, RunnerDescriptor>
+  build?: {
+    externalPackages?: string[]
+  }
 }
 
 export interface TaskName {

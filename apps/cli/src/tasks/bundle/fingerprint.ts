@@ -174,6 +174,9 @@ export const fingerprint = createTask({
     console.log(`Entry point: ${entryPoint}`)
     console.log(`Output: ${outputFile}`)
 
+    // Get external packages from config, default to empty array
+    const externalPackages = forgeJson.build?.externalPackages ?? []
+
     // Build with fingerprinting plugin
     const result = await esbuild.build({
       entryPoints: [entryPoint],
@@ -183,7 +186,8 @@ export const fingerprint = createTask({
       platform: 'node',
       sourcemap: true,
       plugins: [taskFingerprintPlugin()],
-      metafile: true
+      metafile: true,
+      external: externalPackages
     })
 
     // Extract fingerprints from build result
