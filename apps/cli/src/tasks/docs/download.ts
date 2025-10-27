@@ -92,6 +92,7 @@ export const download = createTask({
 
     // Download Hive logging guide if --logs flag is provided
     if (logs) {
+      console.log('===============================================')
       const logsTargetPath = customPath
         ? path.join(path.dirname(customPath), 'hive-logging.md')
         : 'docs/hive-logging.md'
@@ -124,6 +125,8 @@ export const download = createTask({
         size: logsContent.length
       })
     }
+
+    console.log('===============================================')
 
     return {
       success: true,

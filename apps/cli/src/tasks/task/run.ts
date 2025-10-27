@@ -86,11 +86,12 @@ const boundaries = {
       }
 
       const client = new HiveLogClient(config)
+      console.log('===============================================')
       console.log('Sending execution log to Hive...')
       const result = await client.sendLogByUuid(record, taskUuid)
 
       if (result === 'success' || (typeof result === 'object' && 'uuid' in result)) {
-        console.log('===============================================')
+        console.log('')
         console.log('✅ Log sent to Hive successfully')
         console.log(`   Profile: ${profile.name}`)
         console.log(`   Host: ${profile.url}`)
@@ -102,13 +103,17 @@ const boundaries = {
 
         return { success: true, taskUuid }
       } else {
+        console.log('')
         console.error('❌ Failed to send log to Hive:', profile.url)
+        console.log('===============================================')
         return { success: false }
       }
     } catch (e) {
+      console.log('===============================================')
       console.error('❌ Failed to send log to Hive:', profile.url)
       const error = e as Error
       console.error('Error:', error.message)
+      console.log('===============================================')
       return { success: false }
     }
   }

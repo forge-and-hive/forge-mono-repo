@@ -22,6 +22,7 @@ export interface ForgeConf {
   project: {
     name: string
     uuid?: string
+    description?: string
   }
   paths: {
     logs: string
