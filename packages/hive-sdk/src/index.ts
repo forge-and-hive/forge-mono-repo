@@ -266,29 +266,38 @@ export class HiveLogClient {
       return 'silent'
     }
 
-    // Deprecation warning for legacy endpoint
-    log('DEPRECATION WARNING: sendLog() is deprecated. Use sendLogByUuid() with project and task UUIDs for enhanced features and better performance.')
+    if (!this.projectUuid) {
+      log('Error: sendLog requires projectUuid to be set in client config')
+      return 'error'
+    }
+
+    // Look up task UUID from forge.json
+    const taskUuid = this.getTaskUUID(taskName)
+    if (!taskUuid) {
+      log('Error: Cannot find UUID for task "%s" in forge.json', taskName)
+      return 'error'
+    }
 
     try {
-      const logsUrl = `${this.host}/api/tasks/log-ingest`
-      log('Sending log for task "%s" to %s', taskName, logsUrl)
+      const logsUrl = `${this.host}/api/log-ingest`
+      log('Sending log for task "%s" (UUID: %s) to %s', taskName, taskUuid, logsUrl)
 
       const authToken = `${this.apiKey}:${this.apiSecret}`
 
       // Merge metadata with priority: sendLog > record.metadata > client
       const finalMetadata = this.mergeMetadata(record, metadata)
 
-      // Create logItem with merged metadata (no UUID generation for legacy method)
-      const logItem = {
+      // Ensure execution record has a UUID - generate one if missing
+      const recordWithUuid = {
         ...record,
-        taskName,
+        uuid: record.uuid || uuidv7(),
         metadata: finalMetadata
       }
 
       const response = await axios.post(logsUrl, {
-        projectName: this.projectName,
-        taskName,
-        logItem: JSON.stringify(logItem)
+        projectUuid: this.projectUuid,
+        taskUuid,
+        logItem: JSON.stringify(recordWithUuid)
       }, {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -296,7 +305,7 @@ export class HiveLogClient {
         }
       })
 
-      log('Success: Sent log for task "%s"', taskName)
+      log('Success: Sent log for task "%s" (UUID: %s)', taskName, taskUuid)
 
       // Return the full response data if available
       if (response.data && typeof response.data === 'object' && 'uuid' in response.data) {
@@ -311,61 +320,6 @@ export class HiveLogClient {
     }
   }
 
-  async sendLogByUuid(record: ExecutionRecord, taskUuid: string, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess> {
-    if (!this.isInitialized) {
-      log('Silent mode: Skipping sendLogByUuid for task UUID "%s" - client not initialized', taskUuid)
-      return 'silent'
-    }
-
-    if (!this.projectUuid) {
-      log('Error: sendLogByUuid requires projectUuid to be set in client config')
-      return 'error'
-    }
-
-    try {
-      const logsUrl = `${this.host}/api/log-ingest`
-      log('Sending log for task UUID "%s" to %s', taskUuid, logsUrl)
-
-      const authToken = `${this.apiKey}:${this.apiSecret}`
-
-      // Merge metadata with priority: sendLog > record.metadata > client
-      const finalMetadata = this.mergeMetadata(record, metadata)
-
-      // Ensure execution record has a UUID - generate one if missing
-      const recordWithUuid = {
-        ...record,
-        uuid: record.uuid || uuidv7(),
-        metadata: finalMetadata
-      }
-
-      // Create logItem with merged metadata and UUID
-      const logItem = recordWithUuid
-
-      const response = await axios.post(logsUrl, {
-        projectUuid: this.projectUuid,
-        taskUuid,
-        logItem: JSON.stringify(logItem)
-      }, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      log('Success: Sent log for task UUID "%s"', taskUuid)
-
-      // Return the full response data if available
-      if (response.data && typeof response.data === 'object' && 'uuid' in response.data) {
-        return response.data as LogApiSuccess
-      }
-
-      return 'success'
-    } catch (e) {
-      const error = e as Error
-      log('Error: Failed to send log for task UUID "%s": %s', taskUuid, error.message)
-      return 'error'
-    }
-  }
 
   getListener(): (record: ExecutionRecord) => Promise<void> {
     return async (record: ExecutionRecord) => {
@@ -461,27 +415,6 @@ export class HiveLogClient {
     return task.uuid
   }
 
-  async sendLogByName(taskName: string, record: ExecutionRecord, metadata?: Metadata): Promise<'success' | 'error' | 'silent' | LogApiSuccess> {
-    if (!this.isInitialized) {
-      log('Silent mode: Skipping sendLogByName for task "%s" - client not initialized', taskName)
-      return 'silent'
-    }
-
-    if (!this.projectUuid) {
-      log('Error: sendLogByName requires projectUuid to be set in client config')
-      return 'error'
-    }
-
-    const taskUuid = this.getTaskUUID(taskName)
-    if (!taskUuid) {
-      log('Error: Cannot find UUID for task "%s" in forge.json', taskName)
-      return 'error'
-    }
-
-    // Use the existing sendLogByUuid method
-    log('Sending log for task "%s" with uuid "%s"', taskName, taskUuid)
-    return await this.sendLogByUuid(record, taskUuid, metadata)
-  }
 }
 
 export const createHiveLogClient = (config: HiveLogClientConfig): HiveLogClient => {

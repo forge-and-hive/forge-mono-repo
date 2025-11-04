@@ -1,19 +1,47 @@
 import axios from 'axios'
+import fs from 'fs'
 import { HiveLogClient, createHiveLogClient, Metadata } from '../index'
 
-// Mock axios
+// Mock axios and fs
 jest.mock('axios')
+jest.mock('fs')
 const mockedAxios = axios as jest.Mocked<typeof axios>
+const mockedFs = fs as jest.Mocked<typeof fs>
 
 describe('HiveLogClient Metadata', () => {
   const testConfig = {
     projectName: 'test-project',
+    projectUuid: '550e8400-e29b-41d4-a716-446655440000',
     apiKey: 'test-api-key',
     apiSecret: 'test-api-secret',
-    host: 'https://test-host.com'
+    host: 'https://test-host.com',
+    forgeConfigPath: './forge.json'
+  }
+
+  const mockForgeConfig = {
+    project: {
+      name: 'test-project',
+      uuid: '550e8400-e29b-41d4-a716-446655440000'
+    },
+    tasks: {
+      'test-task': {
+        path: 'src/tasks/test.ts',
+        handler: 'testTask',
+        uuid: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+      },
+      'search-task': {
+        path: 'src/tasks/search.ts',
+        handler: 'searchTask',
+        uuid: 'a45aafe3-8b01-4b58-b15d-9a96274858ee'
+      }
+    }
   }
 
   beforeEach(() => {
+    // Mock fs
+    mockedFs.existsSync.mockReturnValue(true)
+    mockedFs.readFileSync.mockReturnValue(JSON.stringify(mockForgeConfig))
+
     // Clear all mocks
     jest.clearAllMocks()
   })
@@ -72,6 +100,7 @@ describe('HiveLogClient Metadata', () => {
 
     beforeEach(() => {
       client = new HiveLogClient(testConfig)
+      jest.clearAllMocks()
     })
 
     it('should send log without metadata parameter', async () => {
@@ -88,27 +117,24 @@ describe('HiveLogClient Metadata', () => {
       const result = await client.sendLog(executionRecord)
 
       expect(result).toBe('success')
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify({
-            input: 'test-input',
-            output: 'test-output',
-            taskName: 'test-task',
-            type: 'success',
-            boundaries: {},
-            metadata: {}
-          })
-        },
-        {
-          headers: {
-            Authorization: 'Bearer test-api-key:test-api-secret',
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+
+      // Verify it uses the UUID endpoint
+      const callArgs = mockedAxios.post.mock.calls[0]
+      expect(callArgs[0]).toBe('https://test-host.com/api/log-ingest')
+
+      // Verify request body structure
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      expect(requestBody.projectUuid).toBe(testConfig.projectUuid)
+      expect(requestBody.taskUuid).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d479')
+
+      // Parse and verify logItem
+      const logItem = JSON.parse(requestBody.logItem)
+      expect(logItem.uuid).toBeDefined()
+      expect(logItem.input).toBe('test-input')
+      expect(logItem.output).toBe('test-output')
+      expect(logItem.taskName).toBe('test-task')
+      expect(logItem.type).toBe('success')
+      expect(logItem.metadata).toEqual({})
     })
 
     it('should send log with metadata parameter', async () => {
@@ -130,30 +156,17 @@ describe('HiveLogClient Metadata', () => {
       const result = await client.sendLog(executionRecord, metadata)
 
       expect(result).toBe('success')
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify({
-            input: 'test-input',
-            output: 'test-output',
-            taskName: 'test-task',
-            type: 'success',
-            boundaries: {},
-            metadata: {
-              requestId: 'req-123',
-              userId: 'user-456'
-            }
-          })
-        },
-        {
-          headers: {
-            Authorization: 'Bearer test-api-key:test-api-secret',
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+
+      const callArgs = mockedAxios.post.mock.calls[0]
+      expect(callArgs[0]).toBe('https://test-host.com/api/log-ingest')
+
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const logItem = JSON.parse(requestBody.logItem)
+
+      expect(logItem.metadata).toEqual({
+        requestId: 'req-123',
+        userId: 'user-456'
+      })
     })
 
     it('should handle logItem with only input property', async () => {
@@ -163,21 +176,13 @@ describe('HiveLogClient Metadata', () => {
       const result = await client.sendLog({ input: 'simple input', taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: {} }, metadata)
 
       expect(result).toBe('success')
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify({
-            input: 'simple input',
-            taskName: 'test-task',
-            type: 'success',
-            boundaries: {},
-            metadata: { type: 'minimal' }
-          })
-        },
-        expect.any(Object)
-      )
+
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const logItem = JSON.parse(requestBody.logItem)
+
+      expect(logItem.input).toBe('simple input')
+      expect(logItem.metadata).toEqual({ type: 'minimal' })
     })
 
     it('should handle logItem with null input values', async () => {
@@ -187,21 +192,13 @@ describe('HiveLogClient Metadata', () => {
       const result = await client.sendLog({ input: null, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: {} }, metadata)
 
       expect(result).toBe('success')
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify({
-            input: null,
-            taskName: 'test-task',
-            type: 'success',
-            boundaries: {},
-            metadata: { type: 'null-test' }
-          })
-        },
-        expect.any(Object)
-      )
+
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const logItem = JSON.parse(requestBody.logItem)
+
+      expect(logItem.input).toBeNull()
+      expect(logItem.metadata).toEqual({ type: 'null-test' })
     })
   })
 
@@ -215,30 +212,20 @@ describe('HiveLogClient Metadata', () => {
       }
 
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
+
       const logItem = { input: 'test' }
 
       await client.sendLog({ ...logItem, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: {} })
 
-      const expectedLogItem = {
-        input: 'test',
-        taskName: 'test-task',
-        type: 'success',
-        boundaries: {},
-        metadata: {
-          environment: 'production',
-          version: '1.0.0'
-        }
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({
+        environment: 'production',
+        version: '1.0.0'
+      })
     })
 
     it('should merge logItem metadata with base metadata', async () => {
@@ -250,6 +237,8 @@ describe('HiveLogClient Metadata', () => {
       }
 
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
+
       const logItem = {
         input: 'test',
         metadata: {
@@ -260,27 +249,15 @@ describe('HiveLogClient Metadata', () => {
 
       await client.sendLog({ ...logItem, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: logItem.metadata || {} })
 
-      const expectedLogItem = {
-        input: 'test',
-        metadata: {
-          environment: 'production', // from base
-          version: '1.1.0',          // from logItem (overrides base)
-          sessionId: 'session-123'   // from logItem
-        },
-        taskName: 'test-task',
-        type: 'success',
-        boundaries: {}
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({
+        environment: 'production', // from base
+        version: '1.1.0',          // from logItem (overrides base)
+        sessionId: 'session-123'   // from logItem
+      })
     })
 
     it('should give sendLog metadata highest priority', async () => {
@@ -293,6 +270,8 @@ describe('HiveLogClient Metadata', () => {
       }
 
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
+
       const logItem = {
         input: 'test',
         metadata: {
@@ -310,29 +289,17 @@ describe('HiveLogClient Metadata', () => {
 
       await client.sendLog({ ...logItem, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: logItem.metadata || {} }, sendLogMetadata)
 
-      const expectedLogItem = {
-        input: 'test',
-        metadata: {
-          environment: 'production',  // from base
-          version: '1.2.0',           // from sendLog (highest priority)
-          priority: 'sendLog',        // from sendLog (highest priority)
-          sessionId: 'session-123',   // from logItem
-          requestId: 'req-456'        // from sendLog
-        },
-        taskName: 'test-task',
-        type: 'success',
-        boundaries: {}
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({
+        environment: 'production',  // from base
+        version: '1.2.0',           // from sendLog (highest priority)
+        priority: 'sendLog',        // from sendLog (highest priority)
+        sessionId: 'session-123',   // from logItem
+        requestId: 'req-456'        // from sendLog
+      })
     })
 
     it('should handle all three metadata sources with complex merging', async () => {
@@ -346,6 +313,8 @@ describe('HiveLogClient Metadata', () => {
       }
 
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
+
       const logItem = {
         input: { query: 'search' },
         output: { results: [] },
@@ -364,33 +333,20 @@ describe('HiveLogClient Metadata', () => {
 
       await client.sendLog({ ...logItem, taskName: 'search-task', type: 'success' as const, boundaries: {}, metadata: logItem.metadata || {} }, sendLogMetadata)
 
-      const expectedLogItem = {
-        input: { query: 'search' },
-        output: { results: [] },
-        metadata: {
-          environment: 'production',    // from base
-          service: 'api-gateway',       // from base
-          version: '1.2.0',             // from sendLog (highest priority)
-          datacenter: 'us-west-2',      // from base
-          algorithm: 'fuzzy-search',    // from logItem
-          processingTime: '250',        // from logItem
-          requestId: 'req-789',         // from sendLog
-          userId: 'user-123'            // from sendLog
-        },
-        taskName: 'search-task',
-        type: 'success',
-        boundaries: {}
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'search-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({
+        environment: 'production',    // from base
+        service: 'api-gateway',       // from base
+        version: '1.2.0',             // from sendLog (highest priority)
+        datacenter: 'us-west-2',      // from base
+        algorithm: 'fuzzy-search',    // from logItem
+        processingTime: '250',        // from logItem
+        requestId: 'req-789',         // from sendLog
+        userId: 'user-123'            // from sendLog
+      })
     })
   })
 
@@ -400,6 +356,7 @@ describe('HiveLogClient Metadata', () => {
 
       const baseMetadata: Metadata = { environment: 'test' }
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
 
       const logItem = {
         input: 'test'
@@ -408,25 +365,13 @@ describe('HiveLogClient Metadata', () => {
 
       await client.sendLog({ ...logItem, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: {} })
 
-      const expectedLogItem = {
-        input: 'test',
-        taskName: 'test-task',
-        type: 'success',
-        boundaries: {},
-        metadata: {
-          environment: 'test' // Only base metadata should be used
-        }
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({
+        environment: 'test' // Only base metadata should be used
+      })
     })
 
     it('should handle logItem with undefined metadata', async () => {
@@ -434,6 +379,7 @@ describe('HiveLogClient Metadata', () => {
 
       const baseMetadata: Metadata = { environment: 'test' }
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
 
       const logItem = {
         input: 'test',
@@ -442,52 +388,30 @@ describe('HiveLogClient Metadata', () => {
 
       await client.sendLog({ ...logItem, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: logItem.metadata || {} })
 
-      const expectedLogItem = {
-        input: 'test',
-        metadata: {
-          environment: 'test' // Only base metadata should be used
-        },
-        taskName: 'test-task',
-        type: 'success',
-        boundaries: {}
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({
+        environment: 'test' // Only base metadata should be used
+      })
     })
 
     it('should handle empty metadata objects', async () => {
       mockedAxios.post.mockResolvedValueOnce({ data: { success: true } })
 
       const client = new HiveLogClient({ ...testConfig, metadata: {} })
+      jest.clearAllMocks()
+
       const logItem = { input: 'test', metadata: {} }
 
       await client.sendLog({ ...logItem, taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: logItem.metadata || {} }, {})
 
-      const expectedLogItem = {
-        input: 'test',
-        metadata: {}, // All empty metadata objects result in empty final metadata
-        taskName: 'test-task',
-        type: 'success',
-        boundaries: {}
-      }
+      const callArgs = mockedAxios.post.mock.calls[0]
+      const requestBody = callArgs[1] as { projectUuid: string; taskUuid: string; logItem: string }
+      const parsedLogItem = JSON.parse(requestBody.logItem)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://test-host.com/api/tasks/log-ingest',
-        {
-          projectName: 'test-project',
-          taskName: 'test-task',
-          logItem: JSON.stringify(expectedLogItem)
-        },
-        expect.any(Object)
-      )
+      expect(parsedLogItem.metadata).toEqual({}) // All empty metadata objects result in empty final metadata
     })
 
     it('should work in silent mode with metadata', async () => {
@@ -505,6 +429,7 @@ describe('HiveLogClient Metadata', () => {
 
       const baseMetadata: Metadata = { environment: 'test' }
       const client = new HiveLogClient({ ...testConfig, metadata: baseMetadata })
+      jest.clearAllMocks()
 
       const result = await client.sendLog({ input: 'test', taskName: 'test-task', type: 'success' as const, boundaries: {}, metadata: {} }, { requestId: 'req-123' })
 
