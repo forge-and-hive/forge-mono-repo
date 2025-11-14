@@ -7,8 +7,8 @@ import { Schema } from '@forgehive/schema'
 import fs from 'fs/promises'
 import path from 'path'
 import os from 'os'
-import axios from 'axios'
 
+import { createClientFromForgeConf, type ExecutionRecord } from '@forgehive/hive-sdk'
 import { create as bundleCreate } from '../bundle/create'
 import { load as bundleLoad } from '../bundle/load'
 import { load as loadConf } from '../conf/load'
@@ -66,32 +66,47 @@ const boundaries = {
 
     return true
   },
-  sendLogToAPI: async (profile: Profile, projectName: string, taskName: string, logItem: unknown, fixtureUUID: string): Promise<boolean> => {
+  sendLogToAPI: async (
+    profile: Profile,
+    record: ExecutionRecord,
+    fixtureUUID: string
+  ): Promise<{ success: boolean; logUuid?: string }> => {
     try {
-      const logsUrl = `${profile.url}/api/tasks/log-ingest`
-      const authToken = `${profile.apiKey}:${profile.apiSecret}`
-
-      await axios.post(logsUrl, {
-        projectName,
-        taskName,
-        logItem: JSON.stringify(logItem),
-        replayFrom: fixtureUUID
-      }, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+      // Use createClientFromForgeConf to automatically load forge.json with task UUIDs
+      const client = createClientFromForgeConf('./forge.json', {
+        apiKey: profile.apiKey,
+        apiSecret: profile.apiSecret,
+        host: profile.url,
+        metadata: {
+          environment: 'cli',
+          replayFrom: fixtureUUID
         }
       })
 
       console.log('===============================================')
-      console.log('Log sent to API... ', profile.name, profile.url)
-      console.log('Replay from fixture UUID:', fixtureUUID)
+      console.log('Sending replay log to Hive...')
+      const result = await client.sendLog(record)
 
-      return true
+      if (result === 'success' || (typeof result === 'object' && 'uuid' in result)) {
+        console.log('✅ Log sent to API...', profile.name, profile.url)
+        console.log('Replay from fixture UUID:', fixtureUUID)
+        console.log('===============================================')
+
+        if (typeof result === 'object' && result && 'uuid' in result) {
+          return { success: true, logUuid: result.uuid }
+        }
+
+        return { success: true }
+      } else {
+        console.error('❌ Failed to send log to Hive')
+        console.log('===============================================')
+        return { success: false }
+      }
     } catch (e) {
       const error = e as Error
-      console.error('Failed to send log to API:', error.message)
-      return false
+      console.error('❌ Failed to send log to API:', error.message)
+      console.log('===============================================')
+      return { success: false }
     }
   }
 }
@@ -107,7 +122,6 @@ export const replay = createTask({
     // Load forge configuration
     const forge: ForgeConf = await loadConf({})
     const taskDescriptor = forge.tasks[descriptorName as keyof typeof forge.tasks]
-    const projectName = forge.project.name
 
     if (taskDescriptor === undefined) {
       throw new Error(`Task ${descriptorName} is not defined in forge.json`)
@@ -203,7 +217,7 @@ export const replay = createTask({
     // Send the log to API if profile is available
     if (profile) {
       try {
-        await sendLogToAPI(profile, projectName, descriptorName, record, fixture.fixtureUUID)
+        await sendLogToAPI(profile, record, fixture.fixtureUUID)
       } catch (e) {
         console.error('Failed to send log to API:', e)
       }

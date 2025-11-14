@@ -10,7 +10,7 @@ import os from 'os'
 import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
 import { RecordTape } from '@forgehive/record-tape'
-import { HiveLogClient, type ExecutionRecord } from '@forgehive/hive-sdk'
+import { createClientFromForgeConf, type ExecutionRecord } from '@forgehive/hive-sdk'
 
 import { create as bundleCreate } from '../bundle/create'
 import { load as bundleLoad } from '../bundle/load'
@@ -51,44 +51,34 @@ const boundaries = {
   },
   sendLogToAPI: async (
     profile: Profile,
-    projectName: string,
     record: ExecutionRecord,
-    taskUuid?: string,
-    projectUuid?: string
+    taskUuid?: string
   ): Promise<{ success: boolean; logUuid?: string; taskUuid?: string; skipRemoteLog?: boolean }> => {
-    // Check if we have required UUIDs for the new endpoint
-    if (!projectUuid || !taskUuid) {
+    // Check if we have required UUID for the task
+    if (!taskUuid) {
       console.log('===============================================')
-      console.log('⚠️  Remote logging skipped - missing UUIDs')
+      console.log('⚠️  Remote logging skipped - missing task UUID')
       console.log('')
       console.log('To enable remote logging with enhanced features:')
-      if (!projectUuid) {
-        console.log('• Use "forge project:create" to create a new project, or')
-        console.log('• Use "forge project:link" to connect to an existing project')
-      }
-      if (!taskUuid) {
-        console.log('• Use "forge project:sync" to get the task to have UUID')
-      }
+      console.log('• Use "forge project:sync" to sync tasks and get UUIDs')
       console.log('===============================================')
       return { success: true, skipRemoteLog: true }
     }
 
     try {
-      const config = {
-        projectName,
-        projectUuid,
+      // Use createClientFromForgeConf to automatically load forge.json with task UUIDs
+      const client = createClientFromForgeConf('./forge.json', {
         apiKey: profile.apiKey,
         apiSecret: profile.apiSecret,
         host: profile.url,
         metadata: {
           environment: 'cli'
         }
-      }
+      })
 
-      const client = new HiveLogClient(config)
       console.log('===============================================')
       console.log('Sending execution log to Hive...')
-      const result = await client.sendLogByUuid(record, taskUuid)
+      const result = await client.sendLog(record)
 
       if (result === 'success' || (typeof result === 'object' && 'uuid' in result)) {
         console.log('')
@@ -134,8 +124,6 @@ export const run = createTask({
     // Load forge configuration
     const forge: ForgeConf = await loadConf({})
     const taskDescriptor = forge.tasks[descriptorName as keyof typeof forge.tasks]
-    const projectName = forge.project.name
-    const projectUuid = forge.project.uuid
     const taskUuid = taskDescriptor?.uuid
 
     if (taskDescriptor === undefined) {
@@ -209,7 +197,7 @@ export const run = createTask({
 
     if (profile) {
       try {
-        const logResult = await sendLogToAPI(profile, projectName, logItem, taskUuid, projectUuid)
+        const logResult = await sendLogToAPI(profile, logItem, taskUuid)
 
         if (logResult.success && !logResult.skipRemoteLog && taskUuid) {
           console.log(`🔗 View execution logs: ${profile.url}/tasks/${taskUuid}?tab=logs`)
