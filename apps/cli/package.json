@@ -10,7 +10,7 @@
   "publishConfig": {
     "access": "public",
     "dependencies": {
-      "@forgehive/hive-sdk": "^0.1.6",
+      "@forgehive/hive-sdk": "^0.2.0-alpha-v2",
       "@forgehive/record-tape": "^0.2.7",
       "@forgehive/runner": "^0.2.7",
       "@forgehive/schema": "^0.1.4",
