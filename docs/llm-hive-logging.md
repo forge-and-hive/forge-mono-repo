@@ -64,24 +64,39 @@ const client = createClientFromForgeConf()
 # Set environment variables
 HIVE_API_KEY=your_api_key_here
 HIVE_API_SECRET=your_api_secret_here
-HIVE_HOST=https://your-hive-instance.com  # Optional, defaults to https://www.forgehive.cloud
+HIVE_HOST=https://www.forgehive.cloud  # Optional
+```
+
+```typescript
+import { createHiveLogClient } from '@forgehive/hive-sdk'
+
+const client = createHiveLogClient({
+  projectName: 'My Project',
+  projectUuid: 'your-project-uuid',
+  // API key and secret will be loaded from environment variables
+  metadata: {
+    environment: 'production',
+    version: '1.2.0'
+  }
+})
 ```
 
 #### Option C: Explicit Configuration
 
 ```typescript
-import { HiveLogClient } from '@forgehive/hive-sdk'
+import { createHiveLogClient } from '@forgehive/hive-sdk'
 
-const config = {
+const client = createHiveLogClient({
+  projectName: 'My Project',
   projectUuid: 'your-project-uuid',
   apiKey: 'your_api_key_here',
   apiSecret: 'your_api_secret_here',
-  host: 'https://your-hive-instance.com', // Optional
+  host: 'https://www.forgehive.cloud', // Optional
   metadata: { // Optional base metadata for all logs
     environment: 'production',
     version: '1.2.0'
   }
-}
+})
 ```
 
 ## Approach 1: Automatic Integration (Recommended)
@@ -104,17 +119,9 @@ const hiveClient = createClientFromForgeConf('./forge.json', {
 })
 
 // Set up global listener for all task executions
-Task.listenExecutionRecords(async (record) => {
-  if (hiveClient.isActive()) {
-    // Use sendLogByName for automatic task UUID lookup
-    const taskName = record.taskName || 'unknown-task'
-    await hiveClient.sendLogByName(taskName, record, {
-      // Add execution-specific metadata
-      executionId: record.uuid,
-      timestamp: new Date().toISOString()
-    })
-  }
-})
+Task.listenExecutionRecords(hiveClient.getListener())
+
+// All subsequent task executions will be automatically logged
 ```
 
 ### Benefits of Automatic Integration
@@ -144,11 +151,11 @@ const processDocumentTask = createTask({
     // Task automatically records metadata and metrics
     await setMetadata('documentId', documentId)
     await setMetadata('inputFormat', format)
-    
+
     const content = await readFile(`/docs/${documentId}`)
     const text = await extractText(content, format)
     const result = await saveText(text, documentId)
-    
+
     return { success: true, textLength: text.length }
   }
 })
@@ -172,10 +179,11 @@ Use this approach when you need fine-grained control over which logs to send, wh
 ### Creating a Manual Client
 
 ```typescript
-import { HiveLogClient } from '@forgehive/hive-sdk'
+import { createHiveLogClient } from '@forgehive/hive-sdk'
 
 // Create client with explicit configuration
-const hiveLogger = new HiveLogClient({
+const hiveLogger = createHiveLogClient({
+  projectName: 'My Project',
   projectUuid: 'your-project-uuid',
   apiKey: 'your_api_key',
   apiSecret: 'your_api_secret',
@@ -213,26 +221,22 @@ const analyzeUserBehaviorTask = createTask({
   fn: async ({ userId, sessionId, actions }, { getUserData, analyzePattern, storeInsights, setMetadata, setMetrics }) => {
     await setMetadata('userId', userId)
     await setMetadata('sessionId', sessionId)
-    
+
     const userData = await getUserData(userId)
     const startTime = Date.now()
-    
+
     const insights = await analyzePattern(actions)
-    
+
     // Record performance metric
     await setMetrics({
+      type: 'performance',
       name: 'analysis_duration',
-      value: Date.now() - startTime,
-      unit: 'milliseconds',
-      labels: {
-        userType: userData.type,
-        actionsCount: actions.length.toString()
-      }
+      value: Date.now() - startTime
     })
-    
+
     await storeInsights(insights)
-    
-    return { 
+
+    return {
       insights,
       confidence: insights.confidence,
       processingTime: Date.now() - startTime
@@ -250,16 +254,16 @@ const [result, error, record] = await analyzeUserBehaviorTask.safeRun({
 // Custom logic for sending logs
 if (result && result.confidence > 0.8) {
   // Only send logs for high-confidence analyses
-  const status = await hiveLogger.sendLogByName('analyzeUserBehavior', record, {
+  const status = await hiveLogger.sendLog(record, {
     confidenceLevel: result.confidence.toString(),
     resultQuality: 'high',
     analyticsType: 'behavioral'
   })
-  
+
   console.log('Log status:', status) // 'success', 'error', or 'silent'
 } else if (error) {
   // Send error logs with additional context
-  await hiveLogger.sendLogByName('analyzeUserBehavior', record, {
+  await hiveLogger.sendLog(record, {
     errorType: 'analysis_failure',
     debugFlag: 'true'
   })
@@ -270,7 +274,7 @@ if (result && result.confidence > 0.8) {
 
 - **Selective logging**: Choose which executions to log
 - **Custom metadata**: Add execution-specific metadata
-- **Error handling**: Custom error logging strategies  
+- **Error handling**: Custom error logging strategies
 - **Performance optimization**: Avoid logging low-value executions
 - **Conditional logic**: Send logs based on results or conditions
 
@@ -280,13 +284,14 @@ if (result && result.confidence > 0.8) {
 
 Metadata is merged with the following priority (highest to lowest):
 
-1. **sendLogByName metadata** - Metadata passed to `sendLogByName()` method
+1. **sendLog metadata** - Metadata passed to `sendLog()` method
 2. **Record metadata** - Metadata from task execution (set via `setMetadata`)
 3. **Client base metadata** - Metadata set when creating the client
 
 ```typescript
 // Client base metadata (lowest priority)
-const client = new HiveLogClient({
+const client = createHiveLogClient({
+  projectName: 'My Project',
   projectUuid: 'your-project-uuid',
   metadata: {
     environment: 'production',
@@ -299,8 +304,8 @@ const client = new HiveLogClient({
 const [result, error, record] = await myTask.safeRun(input)
 // record.metadata = { userId: 'user-123', sessionId: 'session-456' }
 
-// sendLogByName metadata has highest priority
-await client.sendLogByName('myTask', record, {
+// sendLog metadata has highest priority
+await client.sendLog(record, {
   requestId: 'req-789',
   version: '1.1.0'  // This overrides client version
 })
@@ -308,21 +313,23 @@ await client.sendLogByName('myTask', record, {
 // Final metadata sent to Hive:
 // {
 //   environment: 'production',  // from client
-//   team: 'backend',            // from client  
+//   team: 'backend',            // from client
 //   userId: 'user-123',         // from record
 //   sessionId: 'session-456',   // from record
-//   version: '1.1.0',           // from sendLogByName (highest priority)
-//   requestId: 'req-789'        // from sendLogByName
+//   version: '1.1.0',           // from sendLog (highest priority)
+//   requestId: 'req-789'        // from sendLog
 // }
 ```
 
 ### Retrieving Logs
 
 ```typescript
+import { isApiError } from '@forgehive/hive-sdk'
+
 // Get a specific log entry
 try {
   const logData = await hiveLogger.getLog('processDocument', 'log-uuid-123')
-  
+
   if (logData && !isApiError(logData)) {
     console.log('Retrieved log:', logData.logItem)
     console.log('Boundaries executed:', Object.keys(logData.logItem.boundaries))
@@ -338,7 +345,7 @@ try {
 ### Setting Quality Assessments
 
 ```typescript
-import { Quality, isApiError } from '@forgehive/hive-sdk'
+import { Quality } from '@forgehive/hive-sdk'
 
 // Define quality assessment
 const quality: Quality = {
@@ -349,7 +356,7 @@ const quality: Quality = {
 
 try {
   const success = await hiveLogger.setQuality('processDocument', 'log-uuid-123', quality)
-  
+
   if (success) {
     console.log('Quality assessment saved successfully')
   } else {
@@ -367,13 +374,16 @@ try {
 The SDK operates in "silent mode" when credentials are missing:
 
 ```typescript
-const hiveLogger = new HiveLogClient({
+import { createHiveLogClient } from '@forgehive/hive-sdk'
+
+const hiveLogger = createHiveLogClient({
+  projectName: 'My Project',
   projectUuid: 'your-project-uuid'
   // No credentials provided - uses environment variables or goes silent
 })
 
-// sendLogByName never throws errors
-const status = await hiveLogger.sendLogByName('task-name', record)
+// sendLog never throws errors
+const status = await hiveLogger.sendLog(record)
 switch (status) {
   case 'success':
     console.log('Log sent successfully')
@@ -399,11 +409,17 @@ if (hiveLogger.isActive()) {
 ### Production Error Handling
 
 ```typescript
+import type { ExecutionRecord, Metadata } from '@forgehive/hive-sdk'
+
 // Robust error handling for production
-async function sendLogSafely(client: HiveLogClient, taskName: string, record: ExecutionRecord, metadata?: Metadata) {
+async function sendLogSafely(
+  client: HiveLogClient,
+  record: ExecutionRecord,
+  metadata?: Metadata
+) {
   try {
-    const status = await client.sendLogByName(taskName, record, metadata)
-    
+    const status = await client.sendLog(record, metadata)
+
     if (status === 'error') {
       // Log to your monitoring system
       console.error('Failed to send log to Hive - network/API error')
@@ -412,10 +428,10 @@ async function sendLogSafely(client: HiveLogClient, taskName: string, record: Ex
       // Maybe log to local file or alternative service
       console.log('Hive unavailable, logging locally')
     }
-    
+
     return status
   } catch (error) {
-    // Should never happen with sendLogByName, but handle just in case
+    // Should never happen with sendLog, but handle just in case
     console.error('Unexpected error sending log:', error)
     return 'error'
   }
@@ -429,10 +445,11 @@ async function sendLogSafely(client: HiveLogClient, taskName: string, record: Ex
 ```typescript
 import express from 'express'
 import { Task } from '@forgehive/task'
-import { HiveLogClient } from '@forgehive/hive-sdk'
+import { createHiveLogClient } from '@forgehive/hive-sdk'
 
 const app = express()
-const hiveLogger = new HiveLogClient({
+const hiveLogger = createHiveLogClient({
+  projectName: 'User API',
   projectUuid: 'your-project-uuid',
   metadata: {
     environment: process.env.NODE_ENV,
@@ -445,15 +462,15 @@ Task.listenExecutionRecords(hiveLogger.getListener())
 
 app.post('/api/users', async (req, res) => {
   const [result, error, record] = await createUserTask.safeRun(req.body)
-  
+
   if (error) {
     // Option 2: Manual logging with request context
-    await hiveLogger.sendLogByName('createUser', record, {
+    await hiveLogger.sendLog(record, {
       requestId: req.headers['x-request-id'] as string,
       userAgent: req.headers['user-agent'] as string,
       ipAddress: req.ip
     })
-    
+
     res.status(500).json({ error: error.message })
   } else {
     res.json(result)
@@ -465,11 +482,10 @@ app.post('/api/users', async (req, res) => {
 
 ```typescript
 import { Task } from '@forgehive/task'
-import { HiveLogClient } from '@forgehive/hive-sdk'
+import { createClientFromForgeConf } from '@forgehive/hive-sdk'
 
 // Set up automatic logging for Lambda
-const hiveLogger = new HiveLogClient({
-  projectUuid: 'your-project-uuid',
+const hiveLogger = createClientFromForgeConf('./forge.json', {
   metadata: {
     environment: 'lambda',
     runtime: process.env.AWS_EXECUTION_ENV
@@ -477,8 +493,7 @@ const hiveLogger = new HiveLogClient({
 })
 
 Task.listenExecutionRecords(async (record) => {
-  const taskName = record.taskName || 'unknown-task'
-  await hiveLogger.sendLogByName(taskName, record, {
+  await hiveLogger.sendLog(record, {
     lambdaRequestId: process.env.AWS_REQUEST_ID,
     lambdaFunction: process.env.AWS_LAMBDA_FUNCTION_NAME
   })
@@ -487,11 +502,11 @@ Task.listenExecutionRecords(async (record) => {
 // Your Lambda handler
 export const handler = async (event: any, context: any) => {
   const [result, error] = await processDocumentTask.safeRun(event)
-  
+
   if (error) {
     throw error
   }
-  
+
   return {
     statusCode: 200,
     body: JSON.stringify(result)
@@ -506,16 +521,19 @@ export const handler = async (event: any, context: any) => {
 # Production
 HIVE_API_KEY=prod_key_xyz
 HIVE_API_SECRET=prod_secret_abc
-HIVE_HOST=https://your-production-hive.com
+HIVE_HOST=https://www.forgehive.cloud
 
-# Development  
+# Development
 HIVE_API_KEY=dev_key_123
 HIVE_API_SECRET=dev_secret_456
 ```
 
 ### 2. Set Base Metadata for Context
 ```typescript
-const client = new HiveLogClient({
+import os from 'os'
+
+const client = createHiveLogClient({
+  projectName: 'My Project',
   projectUuid: 'your-project-uuid',
   metadata: {
     environment: process.env.NODE_ENV,
@@ -553,7 +571,7 @@ if (hiveLogger.isActive()) {
 ### 5. Use Meaningful Metadata
 ```typescript
 // Good metadata for filtering and analysis
-await client.sendLogByName('document-upload', record, {
+await client.sendLog(record, {
   userId: user.id,
   requestId: req.id,
   feature: 'document-upload',
@@ -566,8 +584,9 @@ await client.sendLogByName('document-upload', record, {
 
 ### Essential Imports
 ```typescript
-import { HiveLogClient, isApiError, Quality } from '@forgehive/hive-sdk'
+import { createHiveLogClient, createClientFromForgeConf } from '@forgehive/hive-sdk'
 import { Task } from '@forgehive/task'
+import type { ExecutionRecord, Metadata, Quality } from '@forgehive/hive-sdk'
 ```
 
 ### Automatic Setup
@@ -577,14 +596,15 @@ Task.listenExecutionRecords(client.getListener())
 ```
 
 ### Manual Setup
-```typescript  
-const client = new HiveLogClient({ 
+```typescript
+const client = createHiveLogClient({
+  projectName: 'My Project',
   projectUuid: 'your-project-uuid',
   apiKey: 'key',
   apiSecret: 'secret'
 })
 
-const status = await client.sendLogByName('task-name', record, metadata)
+const status = await client.sendLog(record, metadata)
 ```
 
 ### Error Handling
@@ -592,7 +612,7 @@ const status = await client.sendLogByName('task-name', record, metadata)
 if (client.isActive()) {
   // Can use all methods
 } else {
-  // Only sendLogByName works (returns 'silent')
+  // Only sendLog works (returns 'silent')
 }
 ```
 

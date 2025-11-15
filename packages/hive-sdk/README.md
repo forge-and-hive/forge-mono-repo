@@ -4,11 +4,10 @@ A TypeScript/JavaScript SDK for interacting with the Forge Hive logging and task
 
 ## Quick Start
 
-Create a client from forge.json (recommended):
 ```typescript
 import { createClientFromForgeConf } from '@forgehive/hive-sdk'
 
-// Create client from forge.json (recommended)
+// Create client from forge.json
 const client = createClientFromForgeConf('./forge.json', {
   metadata: {
     environment: 'production',
@@ -19,18 +18,6 @@ const client = createClientFromForgeConf('./forge.json', {
 // Run a task and send log
 const [result, error, record] = await someTask.safeRun(args)
 await client.sendLog(record, { environment: 'production' })
-```
-
-Or create with explicit configuration:
-```typescript
-import { createHiveLogClient } from '@forgehive/hive-sdk'
-
-const client = createHiveLogClient({
-  projectName: 'My Project',
-  projectUuid: 'your-project-uuid',
-  apiKey: 'your_api_key',
-  apiSecret: 'your_api_secret'
-})
 ```
 
 ## Installation
@@ -54,9 +41,9 @@ The Hive SDK provides two main clients:
 
 ## HiveLogClient - Logging Task Executions
 
-### Configuration Options
+### Configuration
 
-#### Option A: From forge.json (Recommended)
+Create a client from your forge.json configuration file:
 
 ```typescript
 import { createClientFromForgeConf } from '@forgehive/hive-sdk'
@@ -64,10 +51,10 @@ import { createClientFromForgeConf } from '@forgehive/hive-sdk'
 // Use default forge.json path (./forge.json)
 const client = createClientFromForgeConf()
 
-// Use custom forge.json path
+// Or specify a custom path
 const client = createClientFromForgeConf('./config/forge.json')
 
-// Add additional config
+// Add additional metadata
 const client = createClientFromForgeConf('./forge.json', {
   metadata: {
     environment: 'production',
@@ -82,45 +69,14 @@ const client = createClientFromForgeConf('./forge.json', {
 - Supports task verification with `testConfig()`
 - Reduces configuration boilerplate
 
-#### Option B: Explicit Configuration
+**API Credentials:**
 
-```typescript
-import { createHiveLogClient } from '@forgehive/hive-sdk'
-
-const client = createHiveLogClient({
-  projectName: 'My Project',
-  projectUuid: 'your-project-uuid',  // Required for sendLog
-  apiKey: 'your_api_key',
-  apiSecret: 'your_api_secret',
-  host: 'https://www.forgehive.cloud', // Optional
-  metadata: { // Optional base metadata
-    environment: 'production',
-    version: '1.2.0'
-  }
-})
-```
-
-#### Option C: Environment Variables
-
-Set environment variables and omit credentials:
+Set your API credentials using environment variables:
 
 ```bash
 HIVE_API_KEY=your_api_key_here
 HIVE_API_SECRET=your_api_secret_here
 HIVE_HOST=https://www.forgehive.cloud  # Optional
-```
-
-```typescript
-import { createHiveLogClient } from '@forgehive/hive-sdk'
-
-// Uses environment variables for credentials
-const client = createHiveLogClient({
-  projectName: 'My Project',
-  projectUuid: 'your-project-uuid',
-  metadata: {
-    environment: 'production'
-  }
-})
 ```
 
 You can get your API credentials at [https://www.forgehive.cloud](https://www.forgehive.cloud).
@@ -402,9 +358,7 @@ The Hive SDK supports a flexible metadata system with a clear priority order:
 
 ```typescript
 // Create client with base metadata
-const client = createHiveLogClient({
-  projectName: 'My Project',
-  projectUuid: 'uuid-here',
+const client = createClientFromForgeConf('./forge.json', {
   metadata: {
     environment: 'production',
     version: '1.0.0'
@@ -579,10 +533,8 @@ The SDK handles errors gracefully:
 When credentials are missing, the client runs in "silent mode":
 
 ```typescript
-const client = createHiveLogClient({
-  projectName: 'My Project'
-  // No credentials - will use env vars or go silent
-})
+const client = createClientFromForgeConf('./forge.json')
+// No credentials in env vars - will go silent
 
 const status = await client.sendLog(record)
 if (status === 'silent') {
