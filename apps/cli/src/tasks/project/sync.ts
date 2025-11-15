@@ -26,6 +26,8 @@ const boundaries = {
   },
   syncTasksToHive: async (
     projectUuid: string,
+    projectName: string,
+    projectDescription: string | undefined,
     tasks: Array<{ uuid: string; name: string }>,
     apiKey: string,
     apiSecret: string,
@@ -57,7 +59,7 @@ const boundaries = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}:${apiSecret}`
         },
-        body: JSON.stringify({ tasks })
+        body: JSON.stringify({ projectName, description: projectDescription, tasks })
       })
 
       if (response.ok) {
@@ -134,11 +136,17 @@ export const sync = createTask({
     }
 
     console.log(`  📊 Found ${tasksToSync.length} tasks to sync`)
+    console.log(`  📝 Project name: ${forge.project.name}`)
+    if (forge.project.description) {
+      console.log(`  📝 Project description: ${forge.project.description}`)
+    }
 
     try {
       const profile = await loadCurrentProfile({})
       const result = await syncTasksToHive(
         forge.project.uuid,
+        forge.project.name,
+        forge.project.description,
         tasksToSync,
         profile.apiKey,
         profile.apiSecret,

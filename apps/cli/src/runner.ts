@@ -114,7 +114,7 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
     const commandsWithDescriptor = ['task:create', 'task:remove', 'task:publish', 'task:describe', 'task:fingerprint']
     const commandsWithRunner = ['runner:create', 'runner:remove']
     const commandsWithoutParams = ['project:unlink', 'project:sync', 'auth:clear']
-    const silentCommands = ['task:describe', 'task:list', 'auth:list', 'info']
+    const silentCommands = ['task:describe', 'task:list', 'auth:list', 'info', 'docs:download']
 
     if (commandsWithDescriptor.includes(taskName)) {
       result = await task.run({ descriptorName: action })
@@ -191,10 +191,10 @@ runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
         logs
       })
     } else if (taskName === 'project:create') {
-      const { projectName, description } = args as { projectName?: string, description?: string }
+      const { name, description } = args as { name: string, description?: string }
 
       result = await task.run({
-        projectName,
+        name,
         description
       })
     } else if (taskName === 'project:link') {

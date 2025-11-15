@@ -12,11 +12,11 @@ import { load as loadConf } from '../conf/load'
 import { loadCurrent as loadCurrentProfile } from '../auth/loadCurrent'
 import { type ForgeConf, type Profile } from '../types'
 
-const name = 'project:create'
-const description = 'Create a new project in ForgeHive'
+const taskName = 'project:create'
+const taskDescription = 'Create a new project in ForgeHive'
 
 const schema = new Schema({
-  projectName: Schema.string().optional(),
+  name: Schema.string(),
   description: Schema.string().optional()
 })
 
@@ -40,39 +40,33 @@ const boundaries = {
 }
 
 export const create = createTask({
-  name,
-  description,
+  name: taskName,
+  description: taskDescription,
   schema,
   boundaries,
   fn: async function (argv, { loadConf, loadCurrentProfile, writeFile, createProject }) {
-    const { projectName: inputProjectName, description } = argv
+    const { name: projectName, description } = argv
 
     // Load current configuration
     const conf = await loadConf({})
 
-    // Use provided projectName or fall back to forge.json project name
-    const projectName = inputProjectName || conf.project.name
+    // Check if project already has a UUID, generate one if not
+    const projectUuid = conf.project.uuid || uuidv4()
 
-    if (!projectName) {
-      throw new Error('Project name is required. Provide --projectName or ensure forge.json has a project name.')
+    // Update forge.json with the project name and UUID
+    const forgePath = path.join(process.cwd(), 'forge.json')
+    const updatedConf: ForgeConf = {
+      ...conf,
+      project: {
+        ...conf.project,
+        name: projectName,
+        uuid: projectUuid
+      }
     }
 
-    // Check if project already has a UUID, generate one if not
-    let projectUuid = conf.project.uuid
-    if (!projectUuid) {
-      projectUuid = uuidv4()
-
-      // Update forge.json with the new UUID
-      const forgePath = path.join(process.cwd(), 'forge.json')
-      const updatedConf: ForgeConf = {
-        ...conf,
-        project: {
-          ...conf.project,
-          uuid: projectUuid
-        }
-      }
-
-      await writeFile(forgePath, JSON.stringify(updatedConf, null, 2))
+    await writeFile(forgePath, JSON.stringify(updatedConf, null, 2))
+    console.log(`Updated forge.json with project name: ${projectName}`)
+    if (!conf.project.uuid) {
       console.log(`Generated and saved project UUID: ${projectUuid}`)
     }
 

@@ -8,8 +8,8 @@
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
     "test": "jest",
-    "demo:metrics": "npm run build && node dist/scripts/metricsDemo.js",
-    "demo:stock-metrics": "npm run build && node dist/scripts/stockMetrics.js"
+    "demo:manual": "npm run build && node dist/scripts/directLogging.js",
+    "demo:hook": "npm run build && node dist/scripts/listenExecutionRecords.js"
   },
   "dependencies": {
     "@forgehive/schema": "workspace:*",

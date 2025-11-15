@@ -6,7 +6,17 @@ import { getPrice } from '../tasks/stock/getPrice'
 // Load environment variables
 dotenv.config()
 
+/**
+ * Example 1: Create client and publish logs manually
+ *
+ * This example shows:
+ * 1. How to create a HiveLogClient from forge.json
+ * 2. How to run a task
+ * 3. How to manually publish logs using sendLog()
+ */
+
 // Create the Hive client from forge.json
+// This automatically reads projectName and projectUuid from forge.json
 const client = createClientFromForgeConf('./forge.json', {
   metadata: {
     environment: 'development',
@@ -14,37 +24,42 @@ const client = createClientFromForgeConf('./forge.json', {
   }
 })
 
-// Example: Direct sendLogByName usage (for one-off logging)
-console.log('=== Direct SendLogByName Usage Example ===')
-console.log('Client config:', client.getConf())
+console.log('=== Example 1: Create Client & Publish Manually ===\n')
 
 async function main(): Promise<void> {
   try {
-    console.log('Testing client configuration...')
+    // Step 1: Verify client configuration
+    console.log('1. Testing client configuration...')
     const configTest = await client.testConfig()
     console.log('Config test result:', configTest)
+    console.log()
 
-    console.log('Running tasks with direct logging...')
+    // Step 2: Run a task
+    console.log('2. Running stock price task...')
+    const [result, error, record] = await getPrice.safeRun({ ticker: 'AAPL' })
 
-    const [, , record] = await getPrice.safeRun({ ticker: 'NVDA' })
-    const name = getPrice.getName() ?? ''
-    console.log('Name:', name)
-
-    // Manually log this specific execution using sendLogByName
-    if (record) {
-      const logResult = await client.sendLogByName(name, record, {
-        environment: 'main',
-        method: 'direct',
-        manual: 'true'
-      })
-      console.log('Direct logging result:', logResult)
+    if (error) {
+      console.error('Task failed:', error)
+      return
     }
 
-    console.log('\n=== Example completed ===')
+    console.log('Task result:', result)
+    console.log()
+
+    // Step 3: Manually publish the execution record
+    console.log('3. Manually publishing log to Hive...')
+    if (record) {
+      const logResult = await client.sendLog(record, {
+        environment: 'development',
+        method: 'manual'
+      })
+      console.log('Log published:', logResult)
+    }
+
+    console.log('\n=== Example completed successfully ===')
   } catch (error) {
-    console.error('Error in main:', error)
+    console.error('Error:', error)
   }
 }
 
-// Run the main function
 main().catch(console.error)
