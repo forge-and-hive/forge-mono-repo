@@ -9,8 +9,7 @@
     "clean": "rm -rf dist",
     "test": "jest",
     "demo:manual": "npm run build && node dist/scripts/directLogging.js",
-    "demo:hook": "npm run build && node dist/scripts/listenExecutionRecords.js",
-    "demo:invoke": "npm run build && node dist/scripts/invoke.js"
+    "demo:hook": "npm run build && node dist/scripts/listenExecutionRecords.js"
   },
   "dependencies": {
     "@forgehive/schema": "workspace:*",
