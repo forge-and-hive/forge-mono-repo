@@ -36,7 +36,7 @@ describe('Validation tests', () => {
     } catch (e) {
       const error = e as Error
 
-      expect(error.message).toEqual('Invalid input on: value: Expected number, received null')
+      expect(error.message).toEqual('Invalid input on: value: Invalid input: expected number, received null')
     }
   })
 
@@ -49,7 +49,7 @@ describe('Validation tests', () => {
       const error = e as Error
 
       // Test the error message format
-      expect(error.message).toEqual('Invalid input on: value: Expected number, received string')
+      expect(error.message).toEqual('Invalid input on: value: Invalid input: expected number, received string')
     }
   })
 
@@ -93,7 +93,7 @@ describe('Validation tests on param', () => {
       expect('no error thrown').toBeUndefined()
     } catch (e) {
       const error = e as Error
-      expect(error.message).toEqual('Invalid input on: name: Expected string, received null')
+      expect(error.message).toEqual('Invalid input on: name: Invalid input: expected string, received null')
     }
   })
 
@@ -127,7 +127,7 @@ describe('Validation multiple values tests', () => {
       expect('no error thrown').toBeUndefined()
     } catch (e) {
       const error = e as Error
-      expect(error.message).toEqual('Invalid input on: value: Expected number, received null, increment: Required')
+      expect(error.message).toEqual('Invalid input on: value: Invalid input: expected number, received null, increment: Invalid input: expected number, received undefined')
     }
   })
 
@@ -138,7 +138,7 @@ describe('Validation multiple values tests', () => {
       expect('no error thrown').toBeUndefined()
     } catch (e) {
       const error = e as Error
-      expect(error.message).toEqual('Invalid input on: increment: Required')
+      expect(error.message).toEqual('Invalid input on: increment: Invalid input: expected number, received undefined')
     }
   })
 
@@ -163,7 +163,11 @@ describe('Get Schema', () => {
     const schema = add2.getSchema()
     const schemaDescription = schema?.describe() ?? {}
 
-    expect(JSON.stringify(schemaDescription)).toBe('{"value":{"type":"number"}}')
+    expect(schemaDescription).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'number' } },
+      required: ['value']
+    })
   })
 
   it('Empty object as string', async () => {
@@ -190,7 +194,11 @@ describe('Set Schema', () => {
     const schema = add2.getSchema()
     const schemaDescription = schema?.describe() ?? {}
 
-    expect(JSON.stringify(schemaDescription)).toBe('{"value":{"type":"number"}}')
+    expect(schemaDescription).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'number' } },
+      required: ['value']
+    })
   })
 
   it('Empty object as string', async () => {
@@ -230,9 +238,9 @@ describe('Multiple validation errors', () => {
       const error = e as Error
       // Test that multiple errors are reported
       expect(error.message).toContain('Invalid input on')
-      expect(error.message).toContain('name: Expected string, received number')
-      expect(error.message).toContain('age: Expected number, received string')
-      expect(error.message).toContain('email: Invalid email')
+      expect(error.message).toContain('name: Invalid input: expected string, received number')
+      expect(error.message).toContain('age: Invalid input: expected number, received string')
+      expect(error.message).toContain('email: Invalid email address')
     }
   })
 })
@@ -274,7 +282,7 @@ describe('Array validation tests', () => {
       expect('no error thrown').toBeUndefined()
     } catch (e) {
       const error = e as Error
-      expect(error.message).toEqual('Invalid input on: tags: Expected array, received string')
+      expect(error.message).toEqual('Invalid input on: tags: Invalid input: expected array, received string')
     }
   })
 
@@ -286,8 +294,8 @@ describe('Array validation tests', () => {
     } catch (e) {
       const error = e as Error
       expect(error.message).toContain('Invalid input on')
-      expect(error.message).toContain('tags.1: Expected string, received number')
-      expect(error.message).toContain('tags.2: Expected string, received boolean')
+      expect(error.message).toContain('tags.1: Invalid input: expected string, received number')
+      expect(error.message).toContain('tags.2: Invalid input: expected string, received boolean')
     }
   })
 
@@ -342,7 +350,7 @@ describe('MixedRecord validation tests', () => {
       expect('no error thrown').toBeUndefined()
     } catch (e) {
       const error = e as Error
-      expect(error.message).toEqual('Invalid input on: metadata: Expected object, received string')
+      expect(error.message).toEqual('Invalid input on: metadata: Invalid input: expected record, received string')
     }
   })
 

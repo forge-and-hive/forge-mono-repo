@@ -1,4 +1,4 @@
-import { Schema } from '@forgehive/schema'
+import { Schema, z } from '@forgehive/schema'
 import { createTask, ExecutionRecord, getExecutionRecordType } from '../index'
 
 describe('safeReplay functionality tests', () => {
@@ -16,9 +16,8 @@ describe('safeReplay functionality tests', () => {
     fetchData: (ticker: string) => Promise<number>
   }
 
-  // ToDo: Add correct type for schema and getTickerPrice
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let schema: Schema<Record<string, any>>
+  // ToDo: Add correct type for getTickerPrice
+  let schema: Schema<{ ticker: z.ZodString }>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let getTickerPrice: any // Using any temporarily until we implement safeReplay
 
