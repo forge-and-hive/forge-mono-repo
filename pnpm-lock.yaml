@@ -36,9 +36,6 @@ importers:
 
   apps/cli:
     dependencies:
-      '@forgehive/forge-cli':
-        specifier: 'link:'
-        version: 'link:'
       '@forgehive/hive-sdk':
         specifier: workspace:*
         version: link:../../packages/hive-sdk
