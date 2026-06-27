@@ -1,11 +1,11 @@
 import { Schema } from '../index'
 
-describe('Schema Custom Validations', () => {
+describe('Schema Optional Fields', () => {
   describe('Optional Fields', () => {
     it('should handle optional string fields', () => {
-      const schema = Schema.from({
-        name: { type: 'string', optional: true },
-        age: { type: 'number' }
+      const schema = new Schema({
+        name: Schema.string().optional(),
+        age: Schema.number()
       })
 
       // Valid with optional field present
@@ -19,9 +19,9 @@ describe('Schema Custom Validations', () => {
     })
 
     it('should handle optional array fields', () => {
-      const schema = Schema.from({
-        tags: { type: 'array', items: { type: 'string' }, optional: true },
-        scores: { type: 'array', items: { type: 'number' } }
+      const schema = new Schema({
+        tags: Schema.array(Schema.string()).optional(),
+        scores: Schema.array(Schema.number())
       })
 
       // Valid with optional array present
@@ -35,26 +35,28 @@ describe('Schema Custom Validations', () => {
     })
 
     it('should correctly describe optional fields', () => {
-      const schema = Schema.from({
-        name: { type: 'string', optional: true },
-        age: { type: 'number' },
-        tags: { type: 'array', items: { type: 'string' }, optional: true }
+      const schema = new Schema({
+        name: Schema.string().optional(),
+        age: Schema.number(),
+        tags: Schema.array(Schema.string()).optional()
       })
 
       const description = schema.describe()
 
-      expect(description.name).toEqual({ type: 'string', optional: true })
-      expect(description.age).toEqual({ type: 'number' })
-      expect(description.tags).toEqual({ type: 'array', items: { type: 'string' }, optional: true })
+      // Optionality is expressed by absence from the `required` list
+      expect(description.required).toEqual(['age'])
+      expect(description.properties?.name).toEqual({ type: 'string' })
+      expect(description.properties?.age).toEqual({ type: 'number' })
+      expect(description.properties?.tags).toEqual({ type: 'array', items: { type: 'string' } })
     })
   })
 
   describe('Schema Roundtrip', () => {
     it('should maintain optional fields through describe/from cycle', () => {
-      const originalSchema = Schema.from({
-        name: { type: 'string', optional: true },
-        age: { type: 'number' },
-        tags: { type: 'array', items: { type: 'string' }, optional: true }
+      const originalSchema = new Schema({
+        name: Schema.string().optional(),
+        age: Schema.number(),
+        tags: Schema.array(Schema.string()).optional()
       })
 
       const description = originalSchema.describe()
@@ -68,6 +70,9 @@ describe('Schema Custom Validations', () => {
       expect(reconstructedSchema.validate(validData)).toBe(true)
       expect(originalSchema.validate(dataWithoutOptional)).toBe(true)
       expect(reconstructedSchema.validate(dataWithoutOptional)).toBe(true)
+
+      // The reconstructed schema preserves which field stayed required
+      expect(reconstructedSchema.describe().required).toEqual(['age'])
     })
   })
 })

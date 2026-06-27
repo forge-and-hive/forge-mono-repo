@@ -1,4 +1,4 @@
-import Schema, { type SchemaDescription } from '../index'
+import Schema from '../index'
 
 describe('Schema Record Types', () => {
   describe('String Record', () => {
@@ -34,15 +34,10 @@ describe('Schema Record Types', () => {
       expect(result).toBe(false)
     })
 
-    it('should create a schema from description with string record type', () => {
-      const description: SchemaDescription = {
-        data: {
-          type: 'stringRecord',
-          optional: false
-        }
-      }
-
-      const schema = Schema.from(description)
+    it('should round-trip a string record schema', () => {
+      const schema = Schema.from(new Schema({
+        data: Schema.stringRecord(),
+      }).describe())
 
       const validData = {
         data: {
@@ -51,8 +46,7 @@ describe('Schema Record Types', () => {
         }
       }
 
-      const result = schema.validate(validData)
-      expect(result).toBe(true)
+      expect(schema.validate(validData)).toBe(true)
     })
   })
 
@@ -89,15 +83,10 @@ describe('Schema Record Types', () => {
       expect(result).toBe(false)
     })
 
-    it('should create a schema from description with number record type', () => {
-      const description: SchemaDescription = {
-        data: {
-          type: 'numberRecord',
-          optional: false
-        }
-      }
-
-      const schema = Schema.from(description)
+    it('should round-trip a number record schema', () => {
+      const schema = Schema.from(new Schema({
+        data: Schema.numberRecord(),
+      }).describe())
 
       const validData = {
         data: {
@@ -106,8 +95,7 @@ describe('Schema Record Types', () => {
         }
       }
 
-      const result = schema.validate(validData)
-      expect(result).toBe(true)
+      expect(schema.validate(validData)).toBe(true)
     })
   })
 
@@ -144,15 +132,10 @@ describe('Schema Record Types', () => {
       expect(result).toBe(false)
     })
 
-    it('should create a schema from description with boolean record type', () => {
-      const description: SchemaDescription = {
-        data: {
-          type: 'booleanRecord',
-          optional: false
-        }
-      }
-
-      const schema = Schema.from(description)
+    it('should round-trip a boolean record schema', () => {
+      const schema = Schema.from(new Schema({
+        data: Schema.booleanRecord(),
+      }).describe())
 
       const validData = {
         data: {
@@ -161,8 +144,7 @@ describe('Schema Record Types', () => {
         }
       }
 
-      const result = schema.validate(validData)
-      expect(result).toBe(true)
+      expect(schema.validate(validData)).toBe(true)
     })
   })
 
@@ -247,15 +229,10 @@ describe('Schema Record Types', () => {
       expect(result).toBe(false)
     })
 
-    it('should create a schema from description with mixed record type', () => {
-      const description: SchemaDescription = {
-        data: {
-          type: 'mixedRecord',
-          optional: false
-        }
-      }
-
-      const schema = Schema.from(description)
+    it('should round-trip a mixed record schema', () => {
+      const schema = Schema.from(new Schema({
+        data: Schema.mixedRecord(),
+      }).describe())
 
       const validData = {
         data: {
@@ -265,13 +242,12 @@ describe('Schema Record Types', () => {
         }
       }
 
-      const result = schema.validate(validData)
-      expect(result).toBe(true)
+      expect(schema.validate(validData)).toBe(true)
     })
   })
 
   describe('Common Record Functionality', () => {
-    it('should reject a record with non-string keys', () => {
+    it('should treat numeric keys as strings (JS limitation)', () => {
       const schema = new Schema({
         data: Schema.stringRecord(),
       })
@@ -296,15 +272,10 @@ describe('Schema Record Types', () => {
       expect(result).toBe(true)
     })
 
-    it('should create a schema from description with optional record type', () => {
-      const description: SchemaDescription = {
-        data: {
-          type: 'stringRecord',
-          optional: true
-        }
-      }
-
-      const schema = Schema.from(description)
+    it('should round-trip an optional record schema', () => {
+      const schema = Schema.from(new Schema({
+        data: Schema.stringRecord().optional()
+      }).describe())
 
       // Test with record present
       const validData1 = {
@@ -320,49 +291,54 @@ describe('Schema Record Types', () => {
       expect(schema.validate(validData2)).toBe(true)
     })
 
-    it('should describe a schema with string record type', () => {
+    it('should describe a string record as an object with string additionalProperties', () => {
       const schema = new Schema({
         data: Schema.stringRecord(),
       })
 
       const description = schema.describe()
-
-      expect(description).toHaveProperty('data')
-      expect(description.data).toHaveProperty('type', 'stringRecord')
-      // The optional property is only included when it's true, not when it's false
+      expect(description.properties?.data).toMatchObject({
+        type: 'object',
+        additionalProperties: { type: 'string' }
+      })
     })
 
-    it('should describe a schema with number record type', () => {
+    it('should describe a number record as an object with number additionalProperties', () => {
       const schema = new Schema({
         data: Schema.numberRecord(),
       })
 
       const description = schema.describe()
-
-      expect(description).toHaveProperty('data')
-      expect(description.data).toHaveProperty('type', 'numberRecord')
+      expect(description.properties?.data).toMatchObject({
+        type: 'object',
+        additionalProperties: { type: 'number' }
+      })
     })
 
-    it('should describe a schema with boolean record type', () => {
+    it('should describe a boolean record as an object with boolean additionalProperties', () => {
       const schema = new Schema({
         data: Schema.booleanRecord(),
       })
 
       const description = schema.describe()
-
-      expect(description).toHaveProperty('data')
-      expect(description.data).toHaveProperty('type', 'booleanRecord')
+      expect(description.properties?.data).toMatchObject({
+        type: 'object',
+        additionalProperties: { type: 'boolean' }
+      })
     })
 
-    it('should describe a schema with mixed record type', () => {
+    it('should describe a mixed record as an object with anyOf additionalProperties', () => {
       const schema = new Schema({
         data: Schema.mixedRecord(),
       })
 
       const description = schema.describe()
-
-      expect(description).toHaveProperty('data')
-      expect(description.data).toHaveProperty('type', 'mixedRecord')
+      expect(description.properties?.data).toMatchObject({
+        type: 'object',
+        additionalProperties: {
+          anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }]
+        }
+      })
     })
   })
 })
