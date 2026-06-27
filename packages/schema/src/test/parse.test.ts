@@ -1,4 +1,4 @@
-import { Schema, z } from '../index'
+import { Schema } from '../index'
 
 describe('Schema.parse()', () => {
   it('returns typed data on success', () => {
