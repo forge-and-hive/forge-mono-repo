@@ -21,16 +21,13 @@ describe('Runner describe', () => {
     runner.load('testTask', task)
     const result = runner.describe()
 
-    expect(result).toEqual({
-      testTask: {
-        name: 'testTask',
-        description: 'A test task that processes numbers',
-        schema: {
-          value: {
-            type: 'number'
-          }
-        }
-      }
+    // schema is now serialized as JSON Schema (draft 2020-12)
+    expect(result.testTask.name).toBe('testTask')
+    expect(result.testTask.description).toBe('A test task that processes numbers')
+    expect(result.testTask.schema).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'number' } },
+      required: ['value']
     })
   })
 
@@ -49,12 +46,12 @@ describe('Runner describe', () => {
     runner.load('simpleTask', task)
     const result = runner.describe()
 
-    expect(result).toEqual({
-      simpleTask: {
-        name: 'simpleTask',
-        description: undefined,
-        schema: {}
-      }
+    expect(result.simpleTask.name).toBe('simpleTask')
+    expect(result.simpleTask.description).toBeUndefined()
+    // empty schema -> JSON Schema object with no properties
+    expect(result.simpleTask.schema).toMatchObject({
+      type: 'object',
+      properties: {}
     })
   })
 
@@ -91,28 +88,30 @@ describe('Runner describe', () => {
 
     const result = runner.describe()
 
-    expect(result).toEqual({
-      'task:run': {
-        name: 'task:run',
-        description: 'Executes the task',
-        schema: {
-          descriptorName: {
-            type: 'string'
-          },
-          args: {
-            type: 'mixedRecord'
+    expect(result['task:run'].name).toBe('task:run')
+    expect(result['task:run'].description).toBe('Executes the task')
+    expect(result['task:run'].schema).toMatchObject({
+      type: 'object',
+      properties: {
+        descriptorName: { type: 'string' },
+        args: {
+          type: 'object',
+          additionalProperties: {
+            anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }]
           }
         }
       },
-      'task:create': {
-        name: 'task:create',
-        description: 'Creates a new task',
-        schema: {
-          descriptorName: {
-            type: 'string'
-          }
-        }
-      }
+      required: ['descriptorName', 'args']
+    })
+
+    expect(result['task:create'].name).toBe('task:create')
+    expect(result['task:create'].description).toBe('Creates a new task')
+    expect(result['task:create'].schema).toMatchObject({
+      type: 'object',
+      properties: {
+        descriptorName: { type: 'string' }
+      },
+      required: ['descriptorName']
     })
   })
 })

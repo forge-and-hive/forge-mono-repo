@@ -1,14 +1,14 @@
 {
   "name": "@forgehive/record-tape",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
     "access": "public",
     "dependencies": {
-      "@forgehive/schema": "^0.1.4",
-      "@forgehive/task": "^0.2.7"
+      "@forgehive/schema": "^0.2.0",
+      "@forgehive/task": "^0.3.0"
     }
   },
   "scripts": {
