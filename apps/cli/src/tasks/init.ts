@@ -7,7 +7,7 @@ import { Schema } from '@forgehive/schema'
 import { type ForgeConf } from './types'
 
 const schema = new Schema({
-  dryRun: Schema.boolean().optional()
+  dryRun: Schema.boolean().describe('Preview the changes without writing any files').optional()
 })
 
 const boundaries = {

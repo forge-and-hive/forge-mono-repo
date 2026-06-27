@@ -12,7 +12,7 @@ const name = 'test:errors'
 const description = 'Test task with intentional runtime errors for error collection testing'
 
 const schema = new Schema({
-  userId: Schema.string()
+  userId: Schema.string().describe('ID of the user to look up')
 })
 
 interface User {

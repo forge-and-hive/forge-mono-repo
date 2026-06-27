@@ -21,8 +21,8 @@ import { type ForgeConf, type Profile } from '../types'
 // For now, we'll use a simple schema without the record type
 // TODO: Use Schema.record once it's properly built and available
 const schema = new Schema({
-  descriptorName: Schema.string(),
-  args: Schema.mixedRecord()
+  descriptorName: Schema.string().describe('The task descriptor name to run (e.g. domain:taskName)'),
+  args: Schema.mixedRecord().describe('Arguments to pass to the task')
   // args will be passed directly without schema validation for now
 })
 

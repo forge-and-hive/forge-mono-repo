@@ -12,10 +12,10 @@ import { load as loadProfiles } from './load'
 import { type Profiles } from '../types'
 
 const schema = new Schema({
-  name: Schema.string(),
-  apiKey: Schema.string(),
-  apiSecret: Schema.string(),
-  url: Schema.string()
+  name: Schema.string().describe('The name of the profile'),
+  apiKey: Schema.string().describe('The API key for the profile'),
+  apiSecret: Schema.string().describe('The API secret for the profile'),
+  url: Schema.string().describe('The URL for the profile')
 })
 
 const boundaries = {

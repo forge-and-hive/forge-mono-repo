@@ -93,10 +93,87 @@ runner.load('project:link', linkProject)
 runner.load('project:unlink', unlinkProject)
 runner.load('project:sync', syncProject)
 
+function printAllHelp(): void {
+  const tasks = runner.describe()
+  console.log('Usage: forge <command> [options]')
+  console.log('')
+  console.log('Commands:')
+
+  const groups: Record<string, string[]> = {}
+  for (const name of Object.keys(tasks).sort()) {
+    const group = name.includes(':') ? name.split(':')[0] : name
+    if (!groups[group]) {
+      groups[group] = []
+    }
+    groups[group].push(name)
+  }
+
+  for (const [group, commands] of Object.entries(groups)) {
+    console.log(`\n  ${group}:`)
+    for (const cmd of commands) {
+      const desc = tasks[cmd].description || ''
+      console.log(`    ${cmd.padEnd(26)} ${desc}`)
+    }
+  }
+
+  console.log('')
+  console.log('Run "forge <command> --help" for more information on a specific command.')
+}
+
+function printTaskHelp(taskName: string): void {
+  const task = runner.getTask(taskName)
+  if (!task) {
+    return
+  }
+
+  // `describe()` returns JSON Schema: fields live under `properties`, optionality
+  // is the absence from `required`, and `description` carries the help text.
+  const schema = task.describe()
+  const properties = (schema.properties ?? {}) as Record<string, { type?: string; format?: string; description?: string }>
+  const required = new Set((schema.required ?? []) as string[])
+  const keys = Object.keys(properties)
+
+  console.log(`Usage: forge ${taskName}${keys.length > 0 ? ' [options]' : ''}`)
+  console.log('')
+
+  const desc = task.getDescription()
+  if (desc) {
+    console.log(desc)
+    console.log('')
+  }
+
+  if (keys.length > 0) {
+    console.log('Options:')
+    for (const key of keys) {
+      const field = properties[key]
+      const type = field.format ?? field.type ?? 'unknown'
+      const optional = required.has(key) ? '' : ' (optional)'
+      const description = field.description ? ` - ${field.description}` : ''
+      console.log(`  --${key.padEnd(20)} ${`${type}${optional}`.padEnd(20)}${description}`)
+    }
+    console.log('')
+  } else {
+    console.log('This command takes no options.')
+    console.log('')
+  }
+}
+
 // Set handler
 runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
   const parsedArgs = runner.parseArguments(data)
   const { taskName, action, args } = parsedArgs
+
+  const helpRequested = (args as Record<string, unknown>)?.help === true
+
+  if (helpRequested || taskName === 'undefined' || !taskName) {
+    if (helpRequested && runner.getTask(taskName)) {
+      printTaskHelp(taskName)
+    } else {
+      printAllHelp()
+    }
+    setTimeout(() => { process.exit(0) }, 100)
+    return { silent: true, outcome: 'Success', taskName, result: null }
+  }
 
   console.log('===============================================')
   console.log(`Running: ${taskName} ${action ? action : ''} ${JSON.stringify(args)}`)

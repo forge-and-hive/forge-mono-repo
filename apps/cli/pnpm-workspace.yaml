@@ -1,0 +1,2 @@
+overrides:
+  '@forgehive/forge-cli': 'link:'

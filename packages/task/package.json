@@ -1,6 +1,6 @@
 {
   "name": "@forgehive/task",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -8,7 +8,7 @@
   "publishConfig": {
     "access": "public",
     "dependencies": {
-      "@forgehive/schema": "^0.1.4"
+      "@forgehive/schema": "^0.2.0"
     }
   },
   "scripts": {

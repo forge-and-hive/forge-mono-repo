@@ -20,7 +20,7 @@ import { Profile } from '../types'
 import { TaskFingerprintOutput } from '../../utils/taskAnalysis'
 
 const schema = new Schema({
-  descriptorName: Schema.string()
+  descriptorName: Schema.string().describe('The task descriptor name to publish (e.g. domain:taskName)')
 })
 
 const boundaries = {

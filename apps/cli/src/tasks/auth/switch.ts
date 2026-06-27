@@ -12,7 +12,7 @@ import { load as loadProfiles } from './load'
 import { type Profiles } from '../types'
 
 const schema = new Schema({
-  profileName: Schema.string()
+  profileName: Schema.string().describe('The name of the auth profile to switch to')
 })
 
 const boundaries = {

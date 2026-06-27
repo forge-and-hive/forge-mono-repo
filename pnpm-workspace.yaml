@@ -1,3 +1,8 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+allowBuilds:
+  esbuild: false
+  nx: true
+overrides:
+  '@forgehive/forge-cli': link:apps/cli

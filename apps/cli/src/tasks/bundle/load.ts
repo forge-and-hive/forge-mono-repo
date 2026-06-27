@@ -6,7 +6,7 @@ import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
 
 const schema = new Schema({
-  bundlePath: Schema.string()
+  bundlePath: Schema.string().describe('Path to the bundle file to load')
 })
 
 const boundaries = {}

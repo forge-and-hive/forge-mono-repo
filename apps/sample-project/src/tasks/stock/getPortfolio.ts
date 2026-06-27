@@ -10,7 +10,7 @@ const name = 'stock:getPortfolio'
 const description = 'Add task description here'
 
 const schema = new Schema({
-  userUUID: Schema.string()
+  userUUID: Schema.string().describe('UUID of the user whose portfolio to fetch')
 })
 
 const boundaries = {

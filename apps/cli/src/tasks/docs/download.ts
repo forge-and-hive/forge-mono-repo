@@ -16,8 +16,8 @@ const LLM_GUIDE_URL = 'https://raw.githubusercontent.com/forge-and-hive/forge-mo
 const LLM_HIVE_LOGGING_URL = 'https://raw.githubusercontent.com/forge-and-hive/forge-mono-repo/refs/heads/main/docs/llm-hive-logging.md'
 
 const schema = new Schema({
-  path: Schema.string().optional(),
-  logs: Schema.boolean().optional()
+  path: Schema.string().describe('Optional output path for the downloaded docs').optional(),
+  logs: Schema.boolean().describe('Include execution logs in the downloaded docs').optional()
 })
 
 const boundaries = {

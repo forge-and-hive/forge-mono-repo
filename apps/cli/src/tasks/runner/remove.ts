@@ -11,7 +11,7 @@ import { load } from '../conf/load'
 import { type ForgeConf } from '../types'
 
 const schema = new Schema({
-  runnerName: Schema.string()
+  runnerName: Schema.string().describe('The name of the runner to remove')
 })
 
 const boundaries = {

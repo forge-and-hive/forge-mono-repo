@@ -12,7 +12,7 @@ import { fingerprint as bundleFingerprint } from '../bundle/fingerprint'
 const description = 'Analyze a specific task and generate detailed fingerprint without bundling'
 
 const schema = new Schema({
-  descriptorName: Schema.string()
+  descriptorName: Schema.string().describe('The task descriptor name to fingerprint (e.g. domain:taskName)')
 })
 
 const boundaries = {

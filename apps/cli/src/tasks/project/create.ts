@@ -16,8 +16,8 @@ const taskName = 'project:create'
 const taskDescription = 'Create a new project in ForgeHive'
 
 const schema = new Schema({
-  name: Schema.string(),
-  description: Schema.string().optional()
+  name: Schema.string().describe('The name of the project'),
+  description: Schema.string().describe('Optional description of the project').optional()
 })
 
 const boundaries = {

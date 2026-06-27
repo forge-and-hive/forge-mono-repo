@@ -9,14 +9,22 @@ interface TaskLocation {
 interface SchemaProperty {
   name?: string
   type: string
+  format?: string
+  description?: string
+  // Internal marker used while building the schema; stripped in favour of the
+  // object-level `required` array (JSON Schema semantics) before output.
   optional?: boolean
   default?: string
   properties?: Record<string, SchemaProperty>
+  additionalProperties?: SchemaProperty | { anyOf: SchemaProperty[] }
 }
 
+// JSON Schema (draft 2020-12) representation of the task input, matching what
+// `Schema.describe()` produces at runtime.
 interface InputSchema {
   type: string
   properties: Record<string, SchemaProperty>
+  required?: string[]
 }
 
 interface OutputType {
@@ -558,69 +566,110 @@ function analyzeSchemaArg(node: ts.Expression, sourceFile: ts.SourceFile): Input
     const arg = node.arguments?.[0]
     if (arg && ts.isObjectLiteralExpression(arg)) {
       const properties: Record<string, SchemaProperty> = {}
+      const required: string[] = []
       arg.properties.forEach(prop => {
         if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
           const propName = prop.name.text
           const propValue = analyzeSchemaProp(prop.initializer, sourceFile)
+          // Optionality is expressed by absence from `required` (JSON Schema)
+          const isOptional = propValue.optional === true
+          delete propValue.optional
           properties[propName] = propValue
+          if (!isOptional) {
+            required.push(propName)
+          }
         }
       })
-      return { type: 'object', properties }
+      const result: InputSchema = { type: 'object', properties }
+      if (required.length > 0) {
+        result.required = required
+      }
+      return result
     }
   }
   return { type: 'object', properties: {} }
 }
 
-// Enhanced schema property analysis
-function analyzeSchemaProp(node: ts.Expression, sourceFile: ts.SourceFile): SchemaProperty {
-  // Analyze Schema.string(), Schema.number(), etc.
-  if (ts.isCallExpression(node)) {
-    if (ts.isPropertyAccessExpression(node.expression) &&
-      ts.isIdentifier(node.expression.expression) &&
-      node.expression.expression.text === 'Schema') {
+// Analyze a single schema field, unwrapping the call chain
+// (e.g. Schema.string().describe('...').optional()) into a JSON Schema property.
+function analyzeSchemaProp(node: ts.Expression, _sourceFile: ts.SourceFile): SchemaProperty {
+  let optional = false
+  let description: string | undefined
+  let defaultValue: string | undefined
 
-      const methodName = node.expression.name.text
-      const baseType: SchemaProperty = { type: getSchemaTypeFromMethod(methodName) }
+  let current: ts.Expression = node
+  while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+    const methodName = current.expression.name.text
+    const inner = current.expression.expression
 
-      return baseType
-    }
-  }
-
-  // Handle chained calls like Schema.number().optional()
-  if (ts.isCallExpression(node)) {
-    if (ts.isPropertyAccessExpression(node.expression)) {
-      const chainedMethod = node.expression.name.text
-      if (chainedMethod === 'optional') {
-        // This is a .optional() call, get the base type
-        const baseCall = node.expression.expression
-        if (ts.isCallExpression(baseCall)) {
-          const baseType = analyzeSchemaProp(baseCall, sourceFile)
-          return { ...baseType, optional: true }
-        }
-      } else if (chainedMethod === 'default') {
-        // This is a .default() call, get the base type
-        const baseCall = node.expression.expression
-        if (ts.isCallExpression(baseCall)) {
-          const baseType = analyzeSchemaProp(baseCall, sourceFile)
-          const defaultValue = node.arguments[0]?.getText() || 'undefined'
-          return { ...baseType, default: defaultValue }
-        }
+    // Base call: Schema.<type>(...)
+    if (ts.isIdentifier(inner) && inner.text === 'Schema') {
+      const prop = mapSchemaMethod(methodName)
+      if (description !== undefined) {
+        prop.description = description
       }
+      if (defaultValue !== undefined) {
+        prop.default = defaultValue
+      }
+      if (optional) {
+        prop.optional = true
+      }
+      return prop
     }
+
+    // Chained modifiers
+    if (methodName === 'optional') {
+      optional = true
+    } else if (methodName === 'describe') {
+      const arg = current.arguments[0]
+      if (arg && ts.isStringLiteral(arg)) {
+        description = arg.text
+      }
+    } else if (methodName === 'default') {
+      defaultValue = current.arguments[0]?.getText() ?? 'undefined'
+    }
+    // Other modifiers (min/max/regex/...) don't change the JSON Schema type, so
+    // we keep unwrapping until we reach the base Schema.<type>() call.
+
+    current = inner
   }
 
   return { type: 'unknown' }
 }
 
-function getSchemaTypeFromMethod(methodName: string): string {
-  const typeMap: Record<string, string> = {
-    string: 'string',
-    number: 'number',
-    boolean: 'boolean',
-    array: 'array',
-    object: 'object'
+// Map a Schema.* helper name to its JSON Schema representation, matching what
+// Schema.describe() emits at runtime.
+function mapSchemaMethod(methodName: string): SchemaProperty {
+  switch (methodName) {
+  case 'string':
+    return { type: 'string' }
+  case 'number':
+    return { type: 'number' }
+  case 'boolean':
+    return { type: 'boolean' }
+  case 'date':
+    return { type: 'string', format: 'date-time' }
+  case 'email':
+    return { type: 'string', format: 'email' }
+  case 'uuid':
+    return { type: 'string', format: 'uuid' }
+  case 'url':
+    return { type: 'string', format: 'uri' }
+  case 'array':
+    return { type: 'array' }
+  case 'object':
+    return { type: 'object' }
+  case 'stringRecord':
+    return { type: 'object', additionalProperties: { type: 'string' } }
+  case 'numberRecord':
+    return { type: 'object', additionalProperties: { type: 'number' } }
+  case 'booleanRecord':
+    return { type: 'object', additionalProperties: { type: 'boolean' } }
+  case 'mixedRecord':
+    return { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }] } }
+  default:
+    return { type: 'unknown' }
   }
-  return typeMap[methodName] || 'unknown'
 }
 
 

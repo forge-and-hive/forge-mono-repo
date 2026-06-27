@@ -45,8 +45,8 @@ interface FingerprintResult {
 const description = 'Generate task bundle with comprehensive fingerprinting and type extraction'
 
 const schema = new Schema({
-  descriptorName: Schema.string(),
-  filePath: Schema.string().optional()
+  descriptorName: Schema.string().describe('The task descriptor name (e.g. domain:taskName)'),
+  filePath: Schema.string().describe('Optional path to the task source file').optional()
 })
 
 const boundaries = {

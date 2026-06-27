@@ -156,9 +156,16 @@ export interface TaskInstanceType<Func extends BaseFunction = BaseFunction, B ex
 // Define a type for the accumulated boundary data
 type BoundaryData = Array<{input: unknown[], output?: unknown}>
 
-// Helper type to infer schema type
+// Helper type to infer schema type.
+// An empty schema infers to `{ [k: string]: never }` under zod 4; that falls back
+// to a loose record so tasks can still receive pass-through arguments that aren't
+// declared in the schema.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type InferSchemaType<S> = S extends Schema<any> ? InferSchema<S> : Record<string, unknown>;
+export type InferSchemaType<S> = S extends Schema<any>
+  ? InferSchema<S> extends Record<string, never>
+    ? Record<string, unknown>
+    : InferSchema<S>
+  : Record<string, unknown>;
 
 // Type for execution record boundaries that are automatically injected
 // When adding new execution boundaries, add their types here
@@ -343,28 +350,17 @@ export const Task = class Task<
     return result.success ?? false
   }
 
-  // Helper method to check if schema is empty
+  // Helper method to check if schema is empty.
+  // Uses the schema's JSON Schema description (the public contract) rather than
+  // reaching into zod internals, so it stays correct across zod versions.
   public _isEmptySchema(): boolean {
     if (!this._schema) {
       return false
     }
 
-    // Access the underlying Zod schema and get the shape
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const zodSchema = (this._schema as any).schema
-    if (!zodSchema || !zodSchema._def) {
-      return false
-    }
+    const properties = this._schema.describe().properties
 
-    const shapeFn = zodSchema._def.shape
-    if (typeof shapeFn !== 'function') {
-      return false
-    }
-
-    const shape = shapeFn()
-    const isEmpty = Object.keys(shape).length === 0
-
-    return isEmpty
+    return !properties || Object.keys(properties).length === 0
   }
 
   // Posible improvement to handle multiple listeners, but so far its not needed
@@ -580,7 +576,7 @@ export const Task = class Task<
     if (this._schema) {
       const validation = this._schema.safeParse(normalizedInput)
       if (!validation.success) {
-        const errorDetails = validation.error?.errors.map(err =>
+        const errorDetails = validation.error?.issues.map(err =>
           `${err.path.join('.')}: ${err.message}`
         ).join(', ')
 
@@ -742,7 +738,7 @@ export const Task = class Task<
     if (this._schema) {
       const validation = this._schema.safeParse(argv)
       if (!validation.success) {
-        const errorDetails = validation.error?.errors.map(err =>
+        const errorDetails = validation.error?.issues.map(err =>
           `${err.path.join('.')}: ${err.message}`
         ).join(', ')
 
@@ -834,7 +830,7 @@ export const Task = class Task<
     if (this._schema) {
       const validation = this._schema.safeParse(eventArgs)
       if (!validation.success) {
-        const errorDetails = validation.error?.errors.map(err =>
+        const errorDetails = validation.error?.issues.map(err =>
           `${err.path.join('.')}: ${err.message}`
         ).join(', ')
 
@@ -846,7 +842,7 @@ export const Task = class Task<
           statusCode: 422,
           body: JSON.stringify({
             error: errorMessage,
-            details: validation.error?.errors
+            details: validation.error?.issues
           })
         }
       }

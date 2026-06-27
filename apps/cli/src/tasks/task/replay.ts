@@ -30,9 +30,9 @@ interface Fixture {
 const description = 'Replay a task execution from a specified path'
 
 const schema = new Schema({
-  descriptorName: Schema.string(),
-  path: Schema.string(),
-  cache: Schema.string().optional()
+  descriptorName: Schema.string().describe('The task descriptor name to replay (e.g. domain:taskName)'),
+  path: Schema.string().describe('Path to the execution log fixture to replay'),
+  cache: Schema.string().describe('Cache mode for boundaries during replay').optional()
 })
 
 const boundaries = {

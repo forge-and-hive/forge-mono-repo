@@ -7,7 +7,7 @@ import { createTask } from '@forgehive/task'
 import { Schema } from '@forgehive/schema'
 
 const schema = new Schema({
-  ticker: Schema.string()
+  ticker: Schema.string().describe('Stock ticker symbol, e.g. AAPL')
 })
 
 const name = 'stock:getPrice'

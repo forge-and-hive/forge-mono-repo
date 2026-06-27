@@ -9,8 +9,8 @@ import { load as loadConf } from '../conf/load'
 import { type ForgeConf } from '../types'
 
 const schema = new Schema({
-  entryPoint: Schema.string(),
-  outputFile: Schema.string()
+  entryPoint: Schema.string().describe('Path to the task entry point file'),
+  outputFile: Schema.string().describe('Path for the bundled output file')
 })
 
 const boundaries = {

@@ -15,7 +15,7 @@ const name = 'project:link'
 const description = 'Link an existing remote project to the local project by UUID'
 
 const schema = new Schema({
-  uuid: Schema.string()
+  uuid: Schema.string().describe('The UUID of the project to link')
 })
 
 const boundaries = {

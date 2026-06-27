@@ -83,7 +83,7 @@ describe('Safe run', () => {
     expect(log[0]).toEqual({
       type: 'error',
       input: { value: 5 },
-      error: 'Invalid input on: value: Number must be greater than or equal to 10',
+      error: 'Invalid input on: value: Too small: expected number to be >=10',
       boundaries: {
         multiply: []
       },

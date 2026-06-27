@@ -11,8 +11,8 @@ import { load as loadConf } from '../conf/load'
 import { type ForgeConf } from '../types'
 
 const schema = new Schema({
-  runnerName: Schema.string(),
-  targetPath: Schema.string()
+  runnerName: Schema.string().describe('The name of the runner to bundle'),
+  targetPath: Schema.string().describe('Target path for the bundled runner')
 })
 
 const boundaries = {

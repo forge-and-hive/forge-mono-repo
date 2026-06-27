@@ -2,21 +2,9 @@ import { Schema } from '../index'
 
 describe('Schema Custom Number Validations', () => {
   it('should validate number min/max constraints', () => {
-    const schema = Schema.from({
-      age: {
-        type: 'number',
-        validations: {
-          min: 18,
-          max: 100
-        }
-      },
-      score: {
-        type: 'number',
-        validations: {
-          min: 0,
-          max: 100
-        }
-      }
+    const schema = new Schema({
+      age: Schema.number().min(18).max(100),
+      score: Schema.number().min(0).max(100)
     })
 
     // Valid cases
@@ -31,37 +19,24 @@ describe('Schema Custom Number Validations', () => {
     expect(schema.validate({ age: 25, score: 101 })).toBe(false)
   })
 
-  it('should correctly describe number validations', () => {
-    const schema = Schema.from({
-      age: {
-        type: 'number',
-        validations: {
-          min: 18,
-          max: 100
-        }
-      }
+  it('should describe number validations as JSON Schema', () => {
+    const schema = new Schema({
+      age: Schema.number().min(18).max(100)
     })
 
     const description = schema.describe()
-    expect(description.age).toEqual({
+    expect(description.properties?.age).toEqual({
       type: 'number',
-      validations: {
-        min: 18,
-        max: 100
-      }
+      minimum: 18,
+      maximum: 100
     })
   })
 })
 
 describe('Schema Custom String Validations', () => {
   it('should validate string email format', () => {
-    const schema = Schema.from({
-      email: {
-        type: 'string',
-        validations: {
-          email: true
-        }
-      }
+    const schema = new Schema({
+      email: Schema.email()
     })
 
     // Valid cases
@@ -76,14 +51,8 @@ describe('Schema Custom String Validations', () => {
   })
 
   it('should validate string length constraints', () => {
-    const schema = Schema.from({
-      username: {
-        type: 'string',
-        validations: {
-          minLength: 3,
-          maxLength: 20
-        }
-      }
+    const schema = new Schema({
+      username: Schema.string().min(3).max(20)
     })
 
     // Valid cases
@@ -97,13 +66,8 @@ describe('Schema Custom String Validations', () => {
   })
 
   it('should validate string regex pattern', () => {
-    const schema = Schema.from({
-      username: {
-        type: 'string',
-        validations: {
-          regex: '^[a-zA-Z0-9_]+$'
-        }
-      }
+    const schema = new Schema({
+      username: Schema.string().regex(/^[a-zA-Z0-9_]+$/)
     })
 
     // Valid cases
@@ -117,58 +81,35 @@ describe('Schema Custom String Validations', () => {
     expect(schema.validate({ username: 'user name' })).toBe(false)
   })
 
-  it('should correctly describe string validations', () => {
-    const schema = Schema.from({
-      email: {
-        type: 'string',
-        validations: {
-          email: true,
-          minLength: 5,
-          maxLength: 100
-        }
-      }
+  it('should describe string length validations as JSON Schema', () => {
+    const schema = new Schema({
+      email: Schema.email().min(5).max(100)
     })
 
     const description = schema.describe()
-    expect(description.email).toEqual({
+    expect(description.properties?.email).toMatchObject({
       type: 'string',
-      validations: {
-        email: true,
-        minLength: 5,
-        maxLength: 100
-      }
+      format: 'email',
+      minLength: 5,
+      maxLength: 100
     })
   })
 
-  it('should correctly describe string regex validation', () => {
-    const schema = Schema.from({
-      username: {
-        type: 'string',
-        validations: {
-          regex: '^[a-zA-Z0-9_]+$'
-        }
-      }
+  it('should describe string regex validation as a pattern', () => {
+    const schema = new Schema({
+      username: Schema.string().regex(/^[a-zA-Z0-9_]+$/)
     })
 
     const description = schema.describe()
-    expect(description.username).toEqual({
+    expect(description.properties?.username).toMatchObject({
       type: 'string',
-      validations: {
-        regex: '^[a-zA-Z0-9_]+$'
-      }
+      pattern: '^[a-zA-Z0-9_]+$'
     })
   })
 
   it('should handle regex with other string validations', () => {
-    const schema = Schema.from({
-      username: {
-        type: 'string',
-        validations: {
-          regex: '^[a-zA-Z0-9_]+$',
-          minLength: 3,
-          maxLength: 20
-        }
-      }
+    const schema = new Schema({
+      username: Schema.string().regex(/^[a-zA-Z0-9_]+$/).min(3).max(20)
     })
 
     // Valid cases
@@ -185,13 +126,8 @@ describe('Schema Custom String Validations', () => {
   })
 
   it('should handle regex patterns containing forward slashes', () => {
-    const schema = Schema.from({
-      path: {
-        type: 'string',
-        validations: {
-          regex: '^/api/v[0-9]+/users/[0-9]+$'
-        }
-      }
+    const schema = new Schema({
+      path: Schema.string().regex(/^\/api\/v[0-9]+\/users\/[0-9]+$/)
     })
 
     // Valid cases
@@ -204,28 +140,20 @@ describe('Schema Custom String Validations', () => {
     expect(schema.validate({ path: '/api/v1/users' })).toBe(false)
     expect(schema.validate({ path: '/api/v1/users/abc' })).toBe(false)
 
-    // Verify the description preserves the slashes within the pattern
+    // Verify the description preserves the pattern (regex source keeps escaped slashes)
     const description = schema.describe()
-    expect(description.path).toEqual({
+    expect(description.properties?.path).toMatchObject({
       type: 'string',
-      validations: {
-        regex: '^/api/v[0-9]+/users/[0-9]+$'
-      }
+      pattern: '^\\/api\\/v[0-9]+\\/users\\/[0-9]+$'
     })
   })
 
   it('should handle round trip of regex patterns containing forward slashes', () => {
-    const schema = Schema.from({
-      path: {
-        type: 'string',
-        validations: {
-          regex: '^/api/v[0-9]+/users/[0-9]+$'
-        }
-      }
+    const schema = new Schema({
+      path: Schema.string().regex(/^\/api\/v[0-9]+\/users\/[0-9]+$/)
     })
 
     const description = schema.describe()
-
     const cloneSchema = Schema.from(description)
 
     // Valid cases
@@ -238,36 +166,21 @@ describe('Schema Custom String Validations', () => {
     expect(cloneSchema.validate({ path: '/api/v1/users' })).toBe(false)
     expect(cloneSchema.validate({ path: '/api/v1/users/abc' })).toBe(false)
 
-    // Verify the description preserves the slashes within the pattern
+    // Verify the description preserves the pattern (regex source keeps escaped slashes)
     const cloneDescription = cloneSchema.describe()
-    expect(cloneDescription).toMatchObject(description)
+    expect(cloneDescription.properties?.path).toMatchObject({
+      type: 'string',
+      pattern: '^\\/api\\/v[0-9]+\\/users\\/[0-9]+$'
+    })
   })
 })
 
 describe('Schema Roundtrip', () => {
   it('should maintain custom validations through describe/from cycle', () => {
-    const originalSchema = Schema.from({
-      age: {
-        type: 'number',
-        validations: {
-          min: 18,
-          max: 100
-        }
-      },
-      email: {
-        type: 'string',
-        validations: {
-          email: true
-        }
-      },
-      username: {
-        type: 'string',
-        validations: {
-          regex: '^[a-zA-Z0-9_]+$',
-          minLength: 3,
-          maxLength: 20
-        }
-      }
+    const originalSchema = new Schema({
+      age: Schema.number().min(18).max(100),
+      email: Schema.email(),
+      username: Schema.string().regex(/^[a-zA-Z0-9_]+$/).min(3).max(20)
     })
 
     const description = originalSchema.describe()
