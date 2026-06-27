@@ -9,8 +9,9 @@ const name = 'test:sample'
 const description = 'Add task description here'
 
 const schema = new Schema({
-  // Add your schema definitions here
-  // example: myParam: Schema.string()
+  // Add your schema definitions here.
+  // Use .describe() so the field shows up in `forge test:sample --help`.
+  // example: myParam: Schema.string().describe('What this parameter is for')
 })
 
 const boundaries = {
