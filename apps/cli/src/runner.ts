@@ -93,10 +93,73 @@ runner.load('project:link', linkProject)
 runner.load('project:unlink', unlinkProject)
 runner.load('project:sync', syncProject)
 
+function printAllHelp(): void {
+  const tasks = runner.describe()
+  console.log('Usage: forge <command> [options]')
+  console.log('')
+  console.log('Commands:')
+
+  const groups: Record<string, string[]> = {}
+  for (const name of Object.keys(tasks).sort()) {
+    const group = name.includes(':') ? name.split(':')[0] : name
+    if (!groups[group]) groups[group] = []
+    groups[group].push(name)
+  }
+
+  for (const [group, commands] of Object.entries(groups)) {
+    console.log(`\n  ${group}:`)
+    for (const cmd of commands) {
+      const desc = tasks[cmd].description || ''
+      console.log(`    ${cmd.padEnd(26)} ${desc}`)
+    }
+  }
+
+  console.log('')
+  console.log('Run "forge <command> --help" for more information on a specific command.')
+}
+
+function printTaskHelp(taskName: string): void {
+  const task = runner.getTask(taskName)
+  if (!task) return
+
+  console.log(`Usage: forge ${taskName} [options]`)
+  console.log('')
+
+  const desc = task.getDescription()
+  if (desc) {
+    console.log(desc)
+    console.log('')
+  }
+
+  const schema = task.describe()
+  if (schema && Object.keys(schema).length > 0) {
+    console.log('Options:')
+    for (const [key, field] of Object.entries(schema)) {
+      const f = field as { type?: string; optional?: boolean }
+      const type = f.type || 'unknown'
+      const optional = f.optional ? ' (optional)' : ''
+      console.log(`  --${key.padEnd(24)} ${type}${optional}`)
+    }
+    console.log('')
+  }
+}
+
 // Set handler
 runner.setHandler(async (data: ParsedArgs): Promise<unknown> => {
   const parsedArgs = runner.parseArguments(data)
   const { taskName, action, args } = parsedArgs
+
+  const helpRequested = (args as Record<string, unknown>)?.help === true
+
+  if (helpRequested || taskName === 'undefined' || !taskName) {
+    if (helpRequested && runner.getTask(taskName)) {
+      printTaskHelp(taskName)
+    } else {
+      printAllHelp()
+    }
+    setTimeout(() => { process.exit(0) }, 100)
+    return { silent: true, outcome: 'Success', taskName, result: null }
+  }
 
   console.log('===============================================')
   console.log(`Running: ${taskName} ${action ? action : ''} ${JSON.stringify(args)}`)

@@ -1,3 +1,9 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+allowBuilds:
+  '@railway/cli': true
+  esbuild: false
+  nx: set this to true or false
+overrides:
+  '@forgehive/forge-cli': link:apps/cli

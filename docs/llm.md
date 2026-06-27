@@ -200,6 +200,10 @@ forge task:run user:createUser --name="John" --email "john@example.com" --age 30
 - **--input**: Best for complex objects, arrays, or when copying JSON data
 - **Direct flags**: Best for simple parameters and interactive CLI usage
 
+**Reserved parameters — do not use these as task input names:**
+- **--help**: Displays usage information for the command and exits. If a task schema defines a field named `help`, it will never receive a value when running via CLI.
+- **--input**: Used by `forge task:run` to pass arguments as a JSON string. A schema field named `input` will be shadowed by this flag.
+
 #### Examples of Both Approaches
 
 **Simple task with basic parameters:**

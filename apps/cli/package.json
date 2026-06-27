@@ -1,6 +1,6 @@
 {
   "name": "@forgehive/forge-cli",
-  "version": "0.3.18",
+  "version": "0.4.0",
   "description": "TypeScript CLI application",
   "license": "MIT",
   "main": "dist/index.js",
@@ -29,6 +29,7 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
+    "@forgehive/forge-cli": "link:",
     "@forgehive/hive-sdk": "workspace:*",
     "@forgehive/record-tape": "workspace:*",
     "@forgehive/runner": "workspace:*",
