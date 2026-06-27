@@ -102,7 +102,9 @@ function printAllHelp(): void {
   const groups: Record<string, string[]> = {}
   for (const name of Object.keys(tasks).sort()) {
     const group = name.includes(':') ? name.split(':')[0] : name
-    if (!groups[group]) groups[group] = []
+    if (!groups[group]) {
+      groups[group] = []
+    }
     groups[group].push(name)
   }
 
@@ -120,9 +122,18 @@ function printAllHelp(): void {
 
 function printTaskHelp(taskName: string): void {
   const task = runner.getTask(taskName)
-  if (!task) return
+  if (!task) {
+    return
+  }
 
-  console.log(`Usage: forge ${taskName} [options]`)
+  // `describe()` returns JSON Schema: fields live under `properties`, optionality
+  // is the absence from `required`, and `description` carries the help text.
+  const schema = task.describe()
+  const properties = (schema.properties ?? {}) as Record<string, { type?: string; format?: string; description?: string }>
+  const required = new Set((schema.required ?? []) as string[])
+  const keys = Object.keys(properties)
+
+  console.log(`Usage: forge ${taskName}${keys.length > 0 ? ' [options]' : ''}`)
   console.log('')
 
   const desc = task.getDescription()
@@ -131,15 +142,18 @@ function printTaskHelp(taskName: string): void {
     console.log('')
   }
 
-  const schema = task.describe()
-  if (schema && Object.keys(schema).length > 0) {
+  if (keys.length > 0) {
     console.log('Options:')
-    for (const [key, field] of Object.entries(schema)) {
-      const f = field as { type?: string; optional?: boolean }
-      const type = f.type || 'unknown'
-      const optional = f.optional ? ' (optional)' : ''
-      console.log(`  --${key.padEnd(24)} ${type}${optional}`)
+    for (const key of keys) {
+      const field = properties[key]
+      const type = field.format ?? field.type ?? 'unknown'
+      const optional = required.has(key) ? '' : ' (optional)'
+      const description = field.description ? ` - ${field.description}` : ''
+      console.log(`  --${key.padEnd(20)} ${`${type}${optional}`.padEnd(20)}${description}`)
     }
+    console.log('')
+  } else {
+    console.log('This command takes no options.')
     console.log('')
   }
 }

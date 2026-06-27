@@ -11,7 +11,7 @@ import { load } from '../conf/load'
 import { type ForgeConf } from '../types'
 
 const schema = new Schema({
-  descriptorName: Schema.string()
+  descriptorName: Schema.string().describe('The task descriptor name to remove (e.g. domain:taskName)')
 })
 
 const boundaries = {

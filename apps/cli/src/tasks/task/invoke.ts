@@ -14,8 +14,8 @@ const name = 'task:invoke'
 const description = 'Invoke a deployed task remotely using the Hive API'
 
 const schema = new Schema({
-  descriptorName: Schema.string(),
-  json: Schema.string()
+  descriptorName: Schema.string().describe('The task descriptor name (e.g. domain:taskName)'),
+  json: Schema.string().describe('JSON string of arguments to pass to the task')
 })
 
 const boundaries = {

@@ -11,10 +11,10 @@ import path from 'path'
 const description = 'Zip a bundle file for distribution'
 
 const schema = new Schema({
-  dir: Schema.string(),
-  input: Schema.string(),
-  output: Schema.string(),
-  forgeJsonPath: Schema.string().optional() // Optional path to forge.json - if provided, it will be included
+  dir: Schema.string().describe('Directory that will contain the generated zip'),
+  input: Schema.string().describe('Path to the file or folder to add to the zip'),
+  output: Schema.string().describe('Output path for the generated zip file'),
+  forgeJsonPath: Schema.string().describe('Optional path to forge.json to include in the bundle').optional() // Optional path to forge.json - if provided, it will be included
 })
 
 const boundaries = {

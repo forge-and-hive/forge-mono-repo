@@ -17,7 +17,7 @@ import { type ForgeConf } from '../types'
 const description = 'Describe a task with detailed information about its schema, boundaries and configuration'
 
 const schema = new Schema({
-  descriptorName: Schema.string()
+  descriptorName: Schema.string().describe('The task descriptor name to describe (e.g. domain:taskName)')
 })
 
 const boundaries = {

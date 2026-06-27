@@ -42,20 +42,25 @@ interface TaskFingerprintOutput {
 
 ### `InputSchema`
 
-Mirrors the task's `new Schema({...})` definition.
+Mirrors the task's `new Schema({...})` definition as **JSON Schema** (draft 2020-12),
+matching what `Schema.describe()` produces at runtime. Optionality is expressed by the
+object-level `required` array (a field is optional when absent from it).
 
 ```typescript
 interface InputSchema {
   type: "object"
   properties: Record<string, SchemaProperty>
+  required?: string[]
 }
 
 interface SchemaProperty {
   name?: string
   type: string              // "string" | "number" | "boolean" | "array" | "object" | ...
-  optional?: boolean
+  format?: string           // e.g. "date-time" (Schema.date()), "email", "uuid", "uri"
+  description?: string      // from .describe('...')
   default?: string
   properties?: Record<string, SchemaProperty>  // for nested objects
+  additionalProperties?: SchemaProperty | { anyOf: SchemaProperty[] }  // for records
 }
 ```
 
@@ -121,9 +126,14 @@ Scans the file for variable declarations named `schema` and `boundaries` and sto
 Finds all `createTask()` call expressions. Only processes exported ones (e.g. `export const myTask = createTask(...)`). Deduplication prevents double-processing.
 
 ### Pass 3 — Schema extraction
-Reads the `new Schema({...})` constructor argument. Walks method call chains to detect:
-- Property types: `.string()`, `.number()`, `.boolean()`, `.array()`, `.object()`
-- Modifiers: `.optional()`, `.default(value)`
+Reads the `new Schema({...})` constructor argument and produces JSON Schema. Walks method
+call chains to detect:
+- Property types: `.string()`, `.number()`, `.boolean()`, `.array()`, `.object()`, the record
+  helpers (`.stringRecord()` / `.numberRecord()` / `.booleanRecord()` / `.mixedRecord()`), and
+  the string formats `.date()` (→ `format: "date-time"`), `.email()`, `.uuid()`, `.url()`
+- Modifiers: `.describe('...')` (→ `description`), `.optional()` (→ omitted from `required`),
+  `.default(value)`. Other modifiers (`.min()`, `.max()`, `.regex()`, ...) don't change the
+  JSON Schema type and are skipped.
 
 ### Pass 4 — Boundary analysis
 For each function in the boundaries object:
@@ -259,7 +269,8 @@ The fingerprint would be:
     "type": "object",
     "properties": {
       "userId": { "type": "string" }
-    }
+    },
+    "required": ["userId"]
   },
   "outputType": {
     "type": "object",

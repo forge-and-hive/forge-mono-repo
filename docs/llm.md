@@ -66,8 +66,9 @@ const name = 'user:createUser'
 const description = 'Add task description here'
 
 const schema = new Schema({
-  // Add your schema definitions here
-  // example: myParam: Schema.string()
+  // Add your schema definitions here.
+  // Use .describe() so the field shows up in `forge user:createUser --help`.
+  // example: myParam: Schema.string().describe('What this parameter is for')
 })
 
 const boundaries = {
@@ -108,9 +109,9 @@ const DEFAULT_USER_ROLE = 'user'
 const WELCOME_EMAIL_SUBJECT = 'Welcome to our platform!'
 
 const schema = new Schema({
-  name: Schema.string(),
-  email: Schema.string().email(),
-  age: Schema.number().optional()
+  name: Schema.string().describe('Full name of the user'),
+  email: Schema.email().describe('Email address used for the welcome message'),
+  age: Schema.number().describe('Age of the user').optional()
 })
 
 const boundaries = {
@@ -148,7 +149,7 @@ export const createUser = createTask({
 
 1. **Name and Description**: Always provide clear, descriptive names and descriptions
 2. **Constants at Top**: Define constants like URLs, default values after name/description for easy identification
-3. **Schema Definition**: Use Zod-based schemas to validate all inputs
+3. **Schema Definition**: Use Zod-based schemas to validate all inputs. **Add `.describe('...')` to every field** — the description is serialized into the task's JSON Schema and rendered in `forge <task> --help`, so it is the source of the generated help docs
 4. **Boundary Isolation**: All external operations (network, file system, database, etc.) go in boundaries
 5. **Pure Logic**: Task logic should be deterministic and testable
 6. **Destructuring**: Use destructuring for cleaner code: `({ name, email }, { saveUser, sendEmail })`
@@ -197,8 +198,22 @@ forge task:run user:createUser --name="John" --email "john@example.com" --age 30
 ```
 
 **When to use each:**
-- **--input**: Best for complex objects, arrays, or when copying JSON data
-- **Direct flags**: Best for simple parameters and interactive CLI usage
+- **--input**: Best for complex objects, arrays, or when copying JSON data. **Required for nested schemas** — if any field is a `Schema.object({...})`, an array of objects, or a record, you cannot express it with flat `--name value` flags, so pass the whole input as one JSON string via `--input`.
+- **Direct flags**: Best for simple, flat parameters (string / number / boolean fields) and interactive CLI usage.
+
+```bash
+# A task whose schema has a nested object MUST be run with --input:
+#   schema: new Schema({
+#     name: Schema.string().describe('Project name'),
+#     address: Schema.object({
+#       street: Schema.string().describe('Street'),
+#       city: Schema.string().describe('City')
+#     }).describe('Project address')
+#   })
+forge task:run project:create --input='{"name":"Acme","address":{"street":"1 Main St","city":"Springfield"}}'
+```
+
+> Tip: dates are ISO 8601 strings (`Schema.date()` → e.g. `"2024-03-20T12:00:00Z"`), so pass them as strings in `--input` or as a quoted flag value.
 
 **Reserved parameters — do not use these as task input names:**
 - **--help**: Displays usage information for the command and exits. If a task schema defines a field named `help`, it will never receive a value when running via CLI.
@@ -295,7 +310,7 @@ const myTask = createTask({
   name: 'processOrder',
   description: 'Process a customer order',
   schema: new Schema({
-    orderId: Schema.string()
+    orderId: Schema.string().describe('ID of the order to process')
   }),
   boundaries: {
     updateOrder: async (orderId, status) => { /* Update logic */ },
@@ -333,8 +348,8 @@ const processPaymentTask = createTask({
   name: 'processPayment',
   description: 'Process payment with metrics tracking',
   schema: new Schema({
-    amount: Schema.number(),
-    currency: Schema.string()
+    amount: Schema.number().describe('Payment amount'),
+    currency: Schema.string().describe('ISO currency code, e.g. USD')
   }),
   boundaries: {
     chargePayment: async (amount, currency) => { /* Payment logic */ }
@@ -441,38 +456,65 @@ The handler automatically adds `environment: 'hive-lambda'` to the metadata.
 
 ### 1. Schema Design
 
+**Always call `.describe('...')` on each field.** The schema is serialized to JSON Schema
+(via `Schema.describe()`) and the per-field description is what `forge <task> --help` shows.
+A schema without descriptions still validates, but produces empty/uninformative help.
+
 ```typescript
-// Available schema types and validations
+// Available schema types and validations — note the .describe() on every field
 const schema = new Schema({
   // Basic types
-  name: Schema.string(),
-  age: Schema.number(),
-  isActive: Schema.boolean(),
-  createdAt: Schema.date(),
+  name: Schema.string().describe('Full name'),
+  age: Schema.number().describe('Age in years'),
+  isActive: Schema.boolean().describe('Whether the account is active'),
+  createdAt: Schema.date().describe('Creation timestamp (ISO 8601 string)'),
+
+  // String formats (prefer the dedicated helpers over Schema.string().email() etc.)
+  email: Schema.email().describe('Contact email address'),
+  id: Schema.uuid().describe('Record UUID'),
+  website: Schema.url().describe('Public website URL'),
 
   // String validations
-  email: Schema.string().email(),
-  password: Schema.string().min(8).max(50),
-  username: Schema.string().regex(/^[a-zA-Z0-9_]+$/),
+  password: Schema.string().min(8).max(50).describe('Password (8-50 chars)'),
+  username: Schema.string().regex(/^[a-zA-Z0-9_]+$/).describe('Alphanumeric username'),
 
   // Number validations
-  score: Schema.number().min(0).max(100),
+  score: Schema.number().min(0).max(100).describe('Score between 0 and 100'),
 
   // Arrays
-  tags: Schema.array(Schema.string()),
-  scores: Schema.array(Schema.number()),
+  tags: Schema.array(Schema.string()).describe('List of tags'),
+  scores: Schema.array(Schema.number()).describe('List of scores'),
+
+  // Nested objects — see the note below about running these from the CLI
+  address: Schema.object({
+    street: Schema.string().describe('Street address'),
+    city: Schema.string().describe('City')
+  }).describe('Mailing address'),
 
   // Records (key-value objects)
-  stringData: Schema.stringRecord(),        // Record<string, string>
-  numberData: Schema.numberRecord(),        // Record<string, number>
-  booleanData: Schema.booleanRecord(),      // Record<string, boolean>
-  mixedData: Schema.mixedRecord(),          // Record<string, string | number | boolean>
+  stringData: Schema.stringRecord().describe('String key/value map'),   // Record<string, string>
+  numberData: Schema.numberRecord().describe('Number key/value map'),   // Record<string, number>
+  booleanData: Schema.booleanRecord().describe('Boolean key/value map'),// Record<string, boolean>
+  mixedData: Schema.mixedRecord().describe('Mixed key/value map'),      // Record<string, string | number | boolean>
 
-  // Optional fields
-  description: Schema.string().optional(),
-  metadata: Schema.mixedRecord().optional()
+  // Optional fields — put .describe() BEFORE .optional() so the description is kept
+  description: Schema.string().describe('Optional notes').optional(),
+  metadata: Schema.mixedRecord().describe('Optional extra metadata').optional()
 });
 ```
+
+**Guidelines for good schemas:**
+- Describe every field — descriptions are the task's CLI documentation.
+- Use the dedicated format helpers (`Schema.email()`, `Schema.uuid()`, `Schema.url()`,
+  `Schema.date()`) instead of chaining the equivalent on `Schema.string()`.
+- For optional fields, chain `.describe('...')` **before** `.optional()`.
+- Keep top-level fields flat when you can — flat string/number/boolean fields can be passed
+  as simple `--flag value` arguments on the CLI.
+- **Nested schemas (`Schema.object({...})`, arrays of objects, records) cannot be passed with
+  flat flags** — a task with a nested schema must be run with `--input` and a JSON string:
+  ```bash
+  forge task:run user:createUser --input='{"name":"Jane","address":{"street":"1 Main St","city":"Springfield"}}'
+  ```
 
 ### 2. Boundary Organization
 

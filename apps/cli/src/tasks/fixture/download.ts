@@ -26,7 +26,7 @@ interface FixtureResponse {
 const description = 'Download a fixture by UUID to a path based on task descriptor returned from API'
 
 const schema = new Schema({
-  uuid: Schema.string()
+  uuid: Schema.string().describe('The UUID of the fixture to download')
 })
 
 const boundaries = {

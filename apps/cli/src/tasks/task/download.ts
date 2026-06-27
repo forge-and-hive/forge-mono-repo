@@ -13,8 +13,8 @@ import { loadCurrent as loadCurrentProfile } from '../auth/loadCurrent'
 import { Profile, type ForgeConf } from '../types'
 
 const schema = new Schema({
-  descriptorName: Schema.string(),
-  uuid: Schema.string()
+  descriptorName: Schema.string().describe('The task descriptor name (e.g. domain:taskName)'),
+  uuid: Schema.string().describe('The UUID of the task version to download')
 })
 
 const boundaries = {
